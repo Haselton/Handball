@@ -29,13 +29,14 @@ func _show_billboard_banner() -> void:
 	var density := maxf(1.0, float(DisplayServer.screen_get_dpi()) / 160.0)
 	var logical_width := float(screen_size.x) / density
 	var logical_height := float(screen_size.y) / density
-	var banner_x := maxi(0, int((logical_width - 320.0) * 0.5))
-	# The PNG billboard begins roughly 16% down the physical display once the
-	# Android letterbox inset is included.
-	var banner_y := maxi(0, int(logical_height * 0.16))
+	# The photographed billboard opening is 250dp wide on the reference phone.
+	# Keep the native view inside that opening instead of spanning the HUD.
+	var billboard_size := AdSize.new(250, 50)
+	var banner_x := maxi(0, int((logical_width - 250.0) * 0.5))
+	var banner_y := maxi(0, int(logical_height * 0.175))
 	_billboard_banner = AdView.new(
 		"ca-app-pub-3940256099942544/6300978111",
-		AdSize.BANNER,
+		billboard_size,
 		AdPosition.custom(banner_x, banner_y)
 	)
 	_billboard_banner.load_ad(AdRequest.new())
