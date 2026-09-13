@@ -3,63 +3,27 @@ extends Node
 
 signal interstitial_closed
 signal rewarded_continue_earned
-signal billboard_loaded
 
 var _rounds_since_ad := 0
 var _last_ad_time_ms := -90000
 var _interstitial_ready := false
 var _rewarded_ready := false
-var _native_billboard_ad
 
 func initialize() -> void:
+	# The production AdMob plugin is connected here. Test builds deliberately
+	# continue without ads when no Android plugin singleton is installed.
 	preload_ads()
-	_initialize_google_ads()
+	show_billboard_banner()
 
-func _initialize_google_ads() -> void:
-	if OS.get_name() != "Android":
-		return
-	var listener := OnInitializationCompleteListener.new()
-	listener.on_initialization_complete = func(_status) -> void:
-		_load_billboard_test_ad()
-	MobileAds.initialize(listener)
-
-func _load_billboard_test_ad() -> void:
-	# Google's official Android native test unit. This can never record revenue
-	# or contaminate the production account while the court is being tested.
-	var options := NativeAdOptions.new()
-	options.ad_choices_placement = AdChoicesPlacement.Values.TOP_RIGHT
-	options.media_aspect_ratio = NativeMediaAspectRatio.Values.ANY
-	NativeOverlayAd.load(
-		"ca-app-pub-3940256099942544/2247696110",
-		AdRequest.new(),
-		options,
-		func(ad, error) -> void:
-			if error != null or ad == null:
-				return
-			_native_billboard_ad = ad
-			var style := NativeTemplateStyle.new()
-			style.template_id = NativeTemplateStyle.SMALL
-			style.main_background_color = Color("eef0ec")
-			var cta := NativeTemplateTextStyle.new()
-			cta.background_color = Color("315d73")
-			cta.text_color = Color.WHITE
-			cta.font_size = 14
-			cta.style = NativeTemplateFontStyle.Values.BOLD
-			style.call_to_action_text = cta
-			var screen_size := DisplayServer.screen_get_size()
-			var initial_y := int(float(screen_size.y) * 0.17)
-			_native_billboard_ad.render_template(style, AdPosition.custom(0, initial_y), AdSize.BANNER)
-			_native_billboard_ad.on_template_rendered = func() -> void:
-				var ad_width: float = float(_native_billboard_ad.get_template_width_in_pixels())
-				var centered_x := maxi(0, int((float(screen_size.x) - ad_width) * 0.5))
-				_native_billboard_ad.set_template_position(AdPosition.custom(centered_x, initial_y))
-				billboard_loaded.emit()
-	)
-
-func _exit_tree() -> void:
-	if _native_billboard_ad != null:
-		_native_billboard_ad.destroy()
-		_native_billboard_ad = null
+func show_billboard_banner() -> void:
+	# HandballAdMob owns the Android anchored-adaptive view. Its implementation
+	# maps this placement to the reserved billboard face and must use Google's
+	# test unit ID in debug builds. The Godot scene keeps a TEST AD house sign
+	# visible when the native bridge is unavailable.
+	if Engine.has_singleton("HandballAdMob"):
+		var bridge = Engine.get_singleton("HandballAdMob")
+		if bridge.has_method("show_billboard_banner"):
+			bridge.show_billboard_banner()
 
 func preload_ads() -> void:
 	_interstitial_ready = false
