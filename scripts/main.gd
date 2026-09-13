@@ -550,7 +550,8 @@ func _build_ui() -> void:
 	score_label.add_theme_font_size_override("font_size", 54)
 	score_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.96))
 	score_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	score_label.position = Vector2(-100, 44)
+	# Keep gameplay status below the physical billboard/ad overlay.
+	score_label.position = Vector2(-100, 270)
 	score_label.size = Vector2(200, 68)
 	root.add_child(score_label)
 
@@ -559,7 +560,7 @@ func _build_ui() -> void:
 	target_label.add_theme_font_size_override("font_size", 18)
 	target_label.add_theme_color_override("font_color", Color("ffd78a"))
 	target_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	target_label.position = Vector2(-190, 116)
+	target_label.position = Vector2(-190, 334)
 	target_label.size = Vector2(380, 34)
 	root.add_child(target_label)
 	_update_target_label()
@@ -586,7 +587,7 @@ func _build_ui() -> void:
 	best_label.add_theme_font_size_override("font_size", 18)
 	best_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.72))
 	best_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	best_label.position = Vector2(-100, 148)
+	best_label.position = Vector2(-100, 368)
 	best_label.size = Vector2(200, 30)
 	root.add_child(best_label)
 
