@@ -1,0 +1,26 @@
+name: Build Android Test APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Android export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.4.stable
+          mv /root/.local/share/godot/export_templates/4.4.stable/* ~/.local/share/godot/export_templates/4.4.stable/ || true
+      - name: Build debug APK
+        run: |
+          mkdir -p build/android
+          godot --headless --path . --export-debug "Android Debug" build/android/Handball-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Handball-debug-apk
+          path: build/android/Handball-debug.apk
