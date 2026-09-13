@@ -242,8 +242,8 @@ func _toggle_pause() -> void:
 func _build_environment() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	# Let the photographed background plate show through the 3D viewport.
-	environment.background_mode = Environment.BG_CANVAS
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("1d2d3d")
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("c4d6e5")
 	environment.ambient_light_energy = 0.55
@@ -269,18 +269,21 @@ func _build_environment() -> void:
 
 
 func _build_background_plate() -> void:
-	var background_layer := CanvasLayer.new()
-	background_layer.layer = -1
-	add_child(background_layer)
-	var background := TextureRect.new()
+	# A camera-facing 3D plate is deterministic on Android; unlike a negative
+	# CanvasLayer it participates in the same render pass as the ball and target.
+	var background := MeshInstance3D.new()
 	background.name = "UrbanCourtBackground"
-	background.texture = load("res://assets/urban_court_background.png")
-	background.position = Vector2.ZERO
-	background.size = Vector2(720, 1280)
-	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	background_layer.add_child(background)
+	var plate := QuadMesh.new()
+	plate.size = Vector2(9.86, 17.53)
+	var plate_material := StandardMaterial3D.new()
+	plate_material.albedo_texture = load("res://assets/urban_court_background.png")
+	plate_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	plate_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	plate.material = plate_material
+	background.mesh = plate
+	background.position = Vector3(0.0, 0.35, WALL_Z - 0.28)
+	background.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(background)
 
 func _build_billboard() -> void:
 	# The structure is real 3D scenery. The native Android ad bridge places an
