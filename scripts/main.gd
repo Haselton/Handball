@@ -268,7 +268,70 @@ func _build_environment() -> void:
 
 	_build_floor()
 	_build_block_wall()
+	_build_billboard()
 	_build_fences()
+
+func _build_billboard() -> void:
+	# The structure is real 3D scenery. The native Android ad bridge places an
+	# adaptive banner over the inner face using the same reserved screen area.
+	var billboard := Node3D.new()
+	billboard.name = "SkyBillboard"
+	add_child(billboard)
+	var steel := _material(Color("26323a"), 0.38, 0.72)
+	var face_material := _material(Color("132433"), 0.72, 0.05)
+
+	var face := MeshInstance3D.new()
+	var face_mesh := BoxMesh.new()
+	face_mesh.size = Vector3(5.35, 1.48, 0.16)
+	face_mesh.material = face_material
+	face.mesh = face_mesh
+	face.position = Vector3(0.0, 6.35, WALL_Z - 0.12)
+	billboard.add_child(face)
+
+	# Chunky frame rails make the banner read as part of the court instead of UI.
+	for rail in [
+		[Vector3(0.0, 7.14, WALL_Z + 0.01), Vector3(5.72, 0.12, 0.22)],
+		[Vector3(0.0, 5.56, WALL_Z + 0.01), Vector3(5.72, 0.12, 0.22)],
+		[Vector3(-2.80, 6.35, WALL_Z + 0.01), Vector3(0.12, 1.70, 0.22)],
+		[Vector3(2.80, 6.35, WALL_Z + 0.01), Vector3(0.12, 1.70, 0.22)]
+	]:
+		var rail_mesh_instance := MeshInstance3D.new()
+		var rail_mesh := BoxMesh.new()
+		rail_mesh.size = rail[1]
+		rail_mesh.material = steel
+		rail_mesh_instance.mesh = rail_mesh
+		rail_mesh_instance.position = rail[0]
+		billboard.add_child(rail_mesh_instance)
+
+	for x in [-1.85, 1.85]:
+		var post := MeshInstance3D.new()
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.14, 2.25, 0.18)
+		post_mesh.material = steel
+		post.mesh = post_mesh
+		post.position = Vector3(x, 5.18, WALL_Z - 0.17)
+		billboard.add_child(post)
+
+	var ad_copy := Label3D.new()
+	ad_copy.text = "HANDBALL\nTEST AD"
+	ad_copy.font_size = 74
+	ad_copy.outline_size = 10
+	ad_copy.modulate = Color("f2f6f8")
+	ad_copy.outline_modulate = Color("132433")
+	ad_copy.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ad_copy.position = Vector3(0.0, 6.34, WALL_Z + 0.02)
+	ad_copy.pixel_size = 0.0062
+	ad_copy.no_depth_test = true
+	billboard.add_child(ad_copy)
+
+	var disclosure := Label3D.new()
+	disclosure.text = "ADVERTISEMENT"
+	disclosure.font_size = 34
+	disclosure.modulate = Color(1, 1, 1, 0.72)
+	disclosure.position = Vector3(0.0, 7.31, WALL_Z + 0.02)
+	disclosure.pixel_size = 0.0062
+	disclosure.no_depth_test = true
+	billboard.add_child(disclosure)
 
 func _build_floor() -> void:
 	var floor := StaticBody3D.new()
