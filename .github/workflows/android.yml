@@ -57,7 +57,14 @@ jobs:
           verbose: true
           cache: true
           presets_to_export: Android Debug
+      - name: Collect APK
+        run: |
+          apk_path="$(find "$HOME/.local/share/godot/builds" -type f -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          cp "$apk_path" build/android/Handball-debug.apk
+          test -s build/android/Handball-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Handball-debug-apk
           path: build/android/Handball-debug.apk
+          if-no-files-found: error
