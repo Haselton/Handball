@@ -30,7 +30,9 @@ func _show_billboard_banner() -> void:
 	var logical_width := float(screen_size.x) / density
 	var logical_height := float(screen_size.y) / density
 	var banner_x := maxi(0, int((logical_width - 320.0) * 0.5))
-	var banner_y := maxi(0, int(logical_height * 0.085))
+	# The PNG billboard begins roughly 16% down the physical display once the
+	# Android letterbox inset is included.
+	var banner_y := maxi(0, int(logical_height * 0.16))
 	_billboard_banner = AdView.new(
 		"ca-app-pub-3940256099942544/6300978111",
 		AdSize.BANNER,
