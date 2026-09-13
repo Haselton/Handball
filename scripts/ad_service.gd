@@ -4,26 +4,44 @@ extends Node
 signal interstitial_closed
 signal rewarded_continue_earned
 
+var _billboard_banner
+
 var _rounds_since_ad := 0
 var _last_ad_time_ms := -90000
 var _interstitial_ready := false
 var _rewarded_ready := false
 
 func initialize() -> void:
-	# The production AdMob plugin is connected here. Test builds deliberately
-	# continue without ads when no Android plugin singleton is installed.
 	preload_ads()
-	show_billboard_banner()
+	_initialize_banner_ads()
 
-func show_billboard_banner() -> void:
-	# HandballAdMob owns the Android anchored-adaptive view. Its implementation
-	# maps this placement to the reserved billboard face and must use Google's
-	# test unit ID in debug builds. The Godot scene keeps a TEST AD house sign
-	# visible when the native bridge is unavailable.
-	if Engine.has_singleton("HandballAdMob"):
-		var bridge = Engine.get_singleton("HandballAdMob")
-		if bridge.has_method("show_billboard_banner"):
-			bridge.show_billboard_banner()
+func _initialize_banner_ads() -> void:
+	if OS.get_name() != "Android":
+		return
+	var listener := OnInitializationCompleteListener.new()
+	listener.on_initialization_complete = func(_status) -> void:
+		_show_billboard_banner()
+	MobileAds.initialize(listener)
+
+func _show_billboard_banner() -> void:
+	# Standard banner only. Google's official test unit is used in debug APKs.
+	var screen_size := DisplayServer.screen_get_size()
+	var density := maxf(1.0, float(DisplayServer.screen_get_dpi()) / 160.0)
+	var logical_width := float(screen_size.x) / density
+	var logical_height := float(screen_size.y) / density
+	var banner_x := maxi(0, int((logical_width - 320.0) * 0.5))
+	var banner_y := maxi(0, int(logical_height * 0.085))
+	_billboard_banner = AdView.new(
+		"ca-app-pub-3940256099942544/6300978111",
+		AdSize.BANNER,
+		AdPosition.custom(banner_x, banner_y)
+	)
+	_billboard_banner.load_ad(AdRequest.new())
+
+func _exit_tree() -> void:
+	if _billboard_banner != null:
+		_billboard_banner.destroy()
+		_billboard_banner = null
 
 func preload_ads() -> void:
 	_interstitial_ready = false
