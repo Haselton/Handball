@@ -336,7 +336,7 @@ func _build_target() -> void:
 	add_child(wall_target)
 	var colors := [Color("f5a623"), Color("f7efe0"), Color("ed5a3a")]
 	var radii := [0.92, 0.58, 0.25]
-	for index_index index in range(3):
+	for index in range(3):
 		var disk := MeshInstance3D.new()
 		var mesh := CylinderMesh.new()
 		mesh.top_radius = radii[index]
@@ -475,7 +475,7 @@ func _build_ui() -> void:
 	best_label.add_theme_font_size_override("font_size", 18)
 	best_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.72))
 	best_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	best_label.position = Vector2(-100, 106)
+	best_label.position = Vector2(-100, 148)
 	best_label.size = Vector2(200, 30)
 	root.add_child(best_label)
 
