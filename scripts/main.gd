@@ -9,6 +9,7 @@ const FLOOR_Y := -1.55
 const START_SPEED := 8.5
 const MAX_SPEED := 14.0
 const RETURN_ACCELERATION := 0.08
+const URBAN_COURT_TEXTURE: Texture2D = preload("res://assets/urban_court_background.png")
 
 var state := GameState.READY
 var score := 0
@@ -276,9 +277,12 @@ func _build_background_plate() -> void:
 	var plate := QuadMesh.new()
 	plate.size = Vector2(9.86, 17.53)
 	var plate_material := StandardMaterial3D.new()
-	plate_material.albedo_texture = load("res://assets/urban_court_background.png")
+	# Preloading makes this an explicit export dependency. A runtime string load
+	# was omitted/unresolved in the Android package and produced a white plate.
+	plate_material.albedo_texture = URBAN_COURT_TEXTURE
 	plate_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	plate_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	plate_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	plate.material = plate_material
 	background.mesh = plate
 	background.position = Vector3(0.0, 0.35, WALL_Z - 0.28)
