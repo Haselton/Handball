@@ -16,6 +16,31 @@ jobs:
         run: |
           mkdir -p ~/.local/share/godot/export_templates/4.4.stable
           mv /root/.local/share/godot/export_templates/4.4.stable/* ~/.local/share/godot/export_templates/4.4.stable/ || true
+      - name: Configure Android toolchain and signing
+        run: |
+          JAVA_BIN="$(readlink -f "$(command -v javac)")"
+          JAVA_HOME_PATH="$(dirname "$(dirname "$JAVA_BIN")")"
+          mkdir -p ~/.android ~/.config/godot
+          keytool -genkeypair -v \
+            -keystore ~/.android/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          cat > ~/.config/godot/editor_settings-4.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "/usr/lib/android-sdk"
+          export/android/java_sdk_path = "$JAVA_HOME_PATH"
+          export/android/debug_keystore = "/github/home/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          godot --headless --editor --quit --path .
       - name: Build debug APK
         run: |
           mkdir -p build/android
