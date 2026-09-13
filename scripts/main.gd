@@ -275,7 +275,8 @@ func _build_background_plate() -> void:
 	var background := TextureRect.new()
 	background.name = "UrbanCourtBackground"
 	background.texture = load("res://assets/urban_court_background.png")
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.position = Vector2.ZERO
+	background.size = Vector2(720, 1280)
 	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
