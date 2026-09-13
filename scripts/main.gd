@@ -1,0 +1,495 @@
+extends Node3D
+
+enum GameState { READY, PLAYING, LOST, PAUSED }
+
+const BALL_RADIUS := 0.18
+const WALL_Z := -10.0
+const HIT_PLANE_Z := 1.1
+const FLOOR_Y := -1.55
+const START_SPEED := 12.5
+const MAX_SPEED := 30.0
+const RETURN_ACCELERATION := 0.22
+
+var state := GameState.READY
+var score := 0
+var best_score := 0
+var rally_speed := START_SPEED
+var ball_velocity := Vector3.ZERO
+var spin := Vector3.ZERO
+var last_ball_position := Vector3.ZERO
+var touch_start := Vector2.ZERO
+var touch_time_ms := 0
+var missed := false
+
+var ball: MeshInstance3D
+var ball_shadow: Decal
+var camera: Camera3D
+var score_label: Label
+var best_label: Label
+var instruction_label: Label
+var game_over_panel: Control
+var final_score_label: Label
+var reticle: Control
+var impact_flash: OmniLight3D
+var hand: MeshInstance3D
+var ad_service: AdService
+
+func _ready() -> void:
+	best_score = int(_load_best())
+	_build_environment()
+	_build_ball()
+	_build_hand()
+	_build_ui()
+	_build_audio()
+	ad_service = AdService.new()
+	add_child(ad_service)
+	ad_service.interstitial_closed.connect(_restart_round)
+	ad_service.initialize()
+	_reset_ball(true)
+
+func _physics_process(delta: float) -> void:
+	if state != GameState.PLAYING:
+		return
+	last_ball_position = ball.position
+	ball_velocity.y -= 1.5 * delta
+	ball_velocity += spin.cross(ball_velocity.normalized()) * 0.025 * delta
+	ball.position += ball_velocity * delta
+	ball.rotate_x(ball_velocity.z * delta * 1.8)
+	ball.rotate_y(-ball_velocity.x * delta * 1.8)
+	_handle_wall_collision()
+	_handle_side_bounds()
+	_update_shadow()
+	_update_reticle()
+	if ball.position.z > HIT_PLANE_Z + 0.65:
+		_drop_ball()
+	elif ball.position.y < FLOOR_Y - BALL_RADIUS:
+		_drop_ball()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			touch_start = event.position
+			touch_time_ms = Time.get_ticks_msec()
+			_try_strike(event.position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_try_strike(event.position)
+	elif event.is_action_pressed("pause"):
+		_toggle_pause()
+
+func _try_strike(screen_position: Vector2) -> void:
+	if state == GameState.READY:
+		state = GameState.PLAYING
+		instruction_label.visible = false
+		_launch_toward_wall(screen_position, 1.0)
+		return
+	if state == GameState.LOST or state == GameState.PAUSED:
+		return
+	var ball_screen := camera.unproject_position(ball.global_position)
+	var apparent_radius := clampf(160.0 / maxf(0.8, absf(ball.position.z - camera.position.z)), 42.0, 135.0)
+	var distance := screen_position.distance_to(ball_screen)
+	var close_enough := ball.position.z > -0.25 and distance <= apparent_radius * 1.4
+	if close_enough:
+		var quality := clampf(1.0 - distance / (apparent_radius * 1.4), 0.15, 1.0)
+		_launch_toward_wall(screen_position, quality)
+
+func _launch_toward_wall(screen_position: Vector2, quality: float) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	var aim_x := clampf((screen_position.x / viewport_size.x - 0.5) * 2.0, -1.0, 1.0)
+	var aim_y := clampf((0.62 - screen_position.y / viewport_size.y) * 1.5, -0.65, 0.8)
+	rally_speed = minf(MAX_SPEED, START_SPEED + score * RETURN_ACCELERATION)
+	ball_velocity = Vector3(aim_x * 2.7, 1.2 + aim_y * 2.4, -rally_speed)
+	spin = Vector3(-aim_y * 7.0, aim_x * 9.0, 0.0)
+	missed = false
+	_play_hand_animation(screen_position, quality)
+	_play_impact(false, quality)
+	_haptic(35 if quality > 0.72 else 22)
+
+func _handle_wall_collision() -> void:
+	if ball.position.z - BALL_RADIUS > WALL_Z:
+		return
+	ball.position.z = WALL_Z + BALL_RADIUS
+	ball_velocity.z = absf(ball_velocity.z) * 0.88
+	ball_velocity.x += spin.y * 0.035
+	ball_velocity.y -= spin.x * 0.025
+	spin *= 0.78
+	score += 1
+	score_label.text = str(score)
+	if score > best_score:
+		best_score = score
+		best_label.text = "BEST %d" % best_score
+	_play_impact(true, minf(1.0, rally_speed / MAX_SPEED + 0.25))
+	_haptic(12)
+
+func _handle_side_bounds() -> void:
+	if absf(ball.position.x) > 4.65:
+		ball.position.x = signf(ball.position.x) * 4.65
+		ball_velocity.x *= -0.72
+	if ball.position.y > 5.0:
+		ball.position.y = 5.0
+		ball_velocity.y *= -0.65
+
+func _drop_ball() -> void:
+	if state != GameState.PLAYING:
+		return
+	state = GameState.LOST
+	missed = true
+	ad_service.note_round_finished()
+	if score >= best_score:
+		_save_best(best_score)
+	final_score_label.text = "RALLY  %d\nBEST  %d" % [score, best_score]
+	game_over_panel.visible = true
+	reticle.visible = false
+	_haptic(90)
+
+func _on_new_rally_pressed() -> void:
+	game_over_panel.visible = false
+	ad_service.show_interstitial_or_continue()
+
+func _on_save_rally_pressed() -> void:
+	ad_service.show_rewarded_continue()
+
+func _restart_round() -> void:
+	score = 0
+	rally_speed = START_SPEED
+	score_label.text = "0"
+	game_over_panel.visible = false
+	_reset_ball(true)
+	state = GameState.READY
+	instruction_label.visible = true
+	ad_service.preload_ads()
+
+func _reset_ball(serve: bool) -> void:
+	ball.position = Vector3(0.0, -0.25, -2.25)
+	ball_velocity = Vector3.ZERO
+	spin = Vector3.ZERO
+	ball.visible = true
+	reticle.visible = serve
+	_update_shadow()
+
+func _toggle_pause() -> void:
+	if state == GameState.PLAYING:
+		state = GameState.PAUSED
+	elif state == GameState.PAUSED:
+		state = GameState.PLAYING
+
+func _build_environment() -> void:
+	var env := WorldEnvironment.new()
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("87b9dc")
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color("c4d6e5")
+	environment.ambient_light_energy = 0.55
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.45
+	env.environment = environment
+	add_child(env)
+
+	camera = Camera3D.new()
+	camera.position = Vector3(0.0, 0.35, 2.7)
+	camera.fov = 68.0
+	camera.current = true
+	add_child(camera)
+
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-48, -32, 0)
+	sun.light_color = Color("ffe0b2")
+	sun.light_energy = 1.35
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 30.0
+	add_child(sun)
+
+	_build_floor()
+	_build_block_wall()
+	_build_fences()
+
+func _build_floor() -> void:
+	var floor := StaticBody3D.new()
+	var mesh_instance := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(12.0, 0.18, 18.0)
+	mesh.material = _material(Color("34383a"), 0.92, 0.0)
+	mesh_instance.mesh = mesh
+	mesh_instance.position = Vector3(0, FLOOR_Y - 0.09, -3.0)
+	floor.add_child(mesh_instance)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = mesh.size
+	collision.shape = shape
+	collision.position = mesh_instance.position
+	floor.add_child(collision)
+	add_child(floor)
+
+func _build_block_wall() -> void:
+	var wall_root := Node3D.new()
+	wall_root.name = "CinderBlockWall"
+	var block_material := _material(Color("777a78"), 0.94, 0.0)
+	var mortar_material := _material(Color("9a9a91"), 1.0, 0.0)
+	var mortar := MeshInstance3D.new()
+	var mortar_mesh := BoxMesh.new()
+	mortar_mesh.size = Vector3(10.2, 7.0, 0.22)
+	mortar_mesh.material = mortar_material
+	mortar.mesh = mortar_mesh
+	mortar.position = Vector3(0, 1.9, WALL_Z - 0.10)
+	wall_root.add_child(mortar)
+	var block_width := 0.96
+	var block_height := 0.46
+	for row in range(15):
+		var offset := -0.49 if row % 2 else 0.0
+		for column in range(12):
+			var x := -5.28 + column * 0.97 + offset
+			if x < -5.08 or x > 5.08:
+				continue
+			var block := MeshInstance3D.new()
+			var block_mesh := BoxMesh.new()
+			block_mesh.size = Vector3(block_width, block_height, 0.28)
+			block_mesh.material = block_material
+			block.mesh = block_mesh
+			block.position = Vector3(x, -1.29 + row * 0.47, WALL_Z + 0.02)
+			wall_root.add_child(block)
+	var body := StaticBody3D.new()
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(10.2, 7.0, 0.25)
+	collision.shape = shape
+	collision.position = Vector3(0, 1.9, WALL_Z)
+	body.add_child(collision)
+	wall_root.add_child(body)
+	add_child(wall_root)
+
+func _build_fences() -> void:
+	var fence_material := _material(Color("32383b"), 0.55, 0.65)
+	for side in [-1.0, 1.0]:
+		for post_index in range(4):
+			var post := MeshInstance3D.new()
+			var cylinder := CylinderMesh.new()
+			cylinder.top_radius = 0.055
+			cylinder.bottom_radius = 0.055
+			cylinder.height = 4.4
+			cylinder.material = fence_material
+			post.mesh = cylinder
+			post.position = Vector3(side * 5.1, 0.55, -8.8 + post_index * 3.2)
+			add_child(post)
+
+func _build_ball() -> void:
+	ball = MeshInstance3D.new()
+	ball.name = "BlueRacquetball"
+	var sphere := SphereMesh.new()
+	sphere.radius = BALL_RADIUS
+	sphere.height = BALL_RADIUS * 2.0
+	sphere.radial_segments = 48
+	sphere.rings = 24
+	var ball_material := _material(Color("0756d9"), 0.58, 0.0)
+	ball_material.clearcoat_enabled = true
+	ball_material.clearcoat = 0.32
+	ball_material.clearcoat_roughness = 0.42
+	sphere.material = ball_material
+	ball.mesh = sphere
+	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	add_child(ball)
+
+	ball_shadow = Decal.new()
+	ball_shadow.size = Vector3(1.2, 1.2, 1.2)
+	ball_shadow.upper_fade = 0.45
+	ball_shadow.lower_fade = 0.45
+	add_child(ball_shadow)
+
+	impact_flash = OmniLight3D.new()
+	impact_flash.light_color = Color("5b91ff")
+	impact_flash.light_energy = 0.0
+	impact_flash.omni_range = 1.5
+	add_child(impact_flash)
+
+func _build_hand() -> void:
+	# Low-cost prototype silhouette; replace with the rigged Blender hand GLB.
+	hand = MeshInstance3D.new()
+	var palm := CapsuleMesh.new()
+	palm.radius = 0.23
+	palm.height = 0.72
+	palm.material = _material(Color("b97852"), 0.72, 0.0)
+	hand.mesh = palm
+	hand.position = Vector3(0.75, -1.7, 0.25)
+	hand.rotation_degrees = Vector3(76, 0, 18)
+	add_child(hand)
+
+func _build_ui() -> void:
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(root)
+
+	score_label = Label.new()
+	score_label.text = "0"
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	score_label.add_theme_font_size_override("font_size", 54)
+	score_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.96))
+	score_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	score_label.position = Vector2(-100, 44)
+	score_label.size = Vector2(200, 68)
+	root.add_child(score_label)
+
+	best_label = Label.new()
+	best_label.text = "BEST %d" % best_score
+	best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	best_label.add_theme_font_size_override("font_size", 18)
+	best_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.72))
+	best_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	best_label.position = Vector2(-100, 106)
+	best_label.size = Vector2(200, 30)
+	root.add_child(best_label)
+
+	instruction_label = Label.new()
+	instruction_label.text = "TAP THE BALL TO SERVE"
+	instruction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	instruction_label.add_theme_font_size_override("font_size", 19)
+	instruction_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
+	instruction_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	instruction_label.position = Vector2(-180, -185)
+	instruction_label.size = Vector2(360, 42)
+	root.add_child(instruction_label)
+
+	reticle = _make_reticle()
+	root.add_child(reticle)
+	game_over_panel = _make_game_over_panel()
+	root.add_child(game_over_panel)
+
+func _make_reticle() -> Control:
+	var ring := Panel.new()
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.size = Vector2(116, 116)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_color = Color(1, 1, 1, 0.56)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(58)
+	ring.add_theme_stylebox_override("panel", style)
+	return ring
+
+func _make_game_over_panel() -> Control:
+	var panel := PanelContainer.new()
+	panel.visible = false
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.position = Vector2(-210, -210)
+	panel.size = Vector2(420, 420)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.025, 0.035, 0.05, 0.94)
+	panel_style.border_color = Color("286ef0")
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(28)
+	panel_style.content_margin_left = 34
+	panel_style.content_margin_right = 34
+	panel_style.content_margin_top = 30
+	panel_style.content_margin_bottom = 30
+	panel.add_theme_stylebox_override("panel", panel_style)
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 18)
+	panel.add_child(column)
+	var title := Label.new()
+	title.text = "BALL DROPPED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 31)
+	column.add_child(title)
+	final_score_label = Label.new()
+	final_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	final_score_label.add_theme_font_size_override("font_size", 21)
+	column.add_child(final_score_label)
+	var save_button := Button.new()
+	save_button.text = "SAVE RALLY  ▶"
+	save_button.custom_minimum_size.y = 64
+	save_button.pressed.connect(_on_save_rally_pressed)
+	column.add_child(save_button)
+	var restart_button := Button.new()
+	restart_button.text = "NEW RALLY"
+	restart_button.custom_minimum_size.y = 64
+	restart_button.pressed.connect(_on_new_rally_pressed)
+	column.add_child(restart_button)
+	return panel
+
+func _build_audio() -> void:
+	# Procedural impact sound avoids missing-asset failures in the first build.
+	var player := AudioStreamPlayer.new()
+	player.name = "ImpactAudio"
+	var generator := AudioStreamGenerator.new()
+	generator.mix_rate = 22050.0
+	generator.buffer_length = 0.25
+	player.stream = generator
+	add_child(player)
+	player.play()
+
+func _play_impact(wall_hit: bool, strength: float) -> void:
+	var player := get_node_or_null("ImpactAudio") as AudioStreamPlayer
+	if player == null:
+		return
+	var playback := player.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback == null:
+		return
+	var frames := 800
+	var frequency := 128.0 if wall_hit else 86.0
+	for index in range(frames):
+		var time := float(index) / 22050.0
+		var envelope := exp(-time * (75.0 if wall_hit else 48.0))
+		var tone := sin(TAU * frequency * time) * envelope
+		var noise := randf_range(-1.0, 1.0) * envelope * 0.32
+		var sample := (tone * 0.7 + noise) * strength * 0.62
+		playback.push_frame(Vector2(sample, sample))
+	impact_flash.position = ball.position
+	impact_flash.light_energy = 1.5 * strength
+	var tween := create_tween()
+	tween.tween_property(impact_flash, "light_energy", 0.0, 0.09)
+
+func _play_hand_animation(screen_position: Vector2, quality: float) -> void:
+	hand.visible = true
+	var viewport_size := get_viewport().get_visible_rect().size
+	var x := lerpf(-0.85, 0.85, screen_position.x / viewport_size.x)
+	hand.position = Vector3(x, -1.38, 0.2)
+	hand.scale = Vector3.ONE * (0.9 + quality * 0.12)
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(hand, "position:z", -0.6, 0.07)
+	tween.tween_property(hand, "position:z", 0.42, 0.16)
+	tween.tween_callback(func(): hand.visible = false)
+
+func _update_shadow() -> void:
+	if ball_shadow == null:
+		return
+	ball_shadow.position = Vector3(ball.position.x, FLOOR_Y + 0.02, ball.position.z)
+	var height := maxf(0.1, ball.position.y - FLOOR_Y)
+	ball_shadow.size = Vector3(0.65 + height * 0.1, 1.0, 0.65 + height * 0.1)
+
+func _update_reticle() -> void:
+	if camera.is_position_behind(ball.global_position):
+		reticle.visible = false
+		return
+	reticle.visible = ball.position.z > -1.8
+	var point := camera.unproject_position(ball.global_position)
+	var scale_amount := clampf(4.1 / maxf(1.1, camera.position.distance_to(ball.position)), 0.55, 1.35)
+	reticle.position = point - reticle.size * 0.5
+	reticle.scale = Vector2.ONE * scale_amount
+
+func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = roughness
+	material.metallic = metallic
+	return material
+
+func _haptic(duration_ms: int) -> void:
+	if OS.has_feature("mobile"):
+		Input.vibrate_handheld(duration_ms)
+
+func _load_best() -> int:
+	var config := ConfigFile.new()
+	if config.load("user://save.cfg") == OK:
+		return int(config.get_value("scores", "best", 0))
+	return 0
+
+func _save_best(value: int) -> void:
+	var config := ConfigFile.new()
+	config.set_value("scores", "best", value)
+	config.save("user://save.cfg")
+
