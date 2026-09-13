@@ -44,7 +44,7 @@ jobs:
       - name: Build debug APK
         run: |
           mkdir -p build/android
-          godot --headless --path . --export-debug "Android Debug" build/android/Handball-debug.apk
+          godot --headless --verbose --path . --export-debug "Android Debug" build/android/Handball-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Handball-debug-apk
