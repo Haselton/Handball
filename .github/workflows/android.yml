@@ -57,6 +57,7 @@ jobs:
           test -n "$settings_gradle"
           template_root="$(dirname "$settings_gradle")"
           cp -R "$template_root"/. android/build/
+          printf '%s\n' '4.5.1.stable' > android/.build_version
       - name: Export Handball APK
         id: export
         env:
