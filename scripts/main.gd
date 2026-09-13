@@ -116,7 +116,7 @@ func _launch_toward_wall(screen_position: Vector2, quality: float) -> void:
 	var aim_x := clampf((screen_position.x / viewport_size.x - 0.5) * 2.0, -1.0, 1.0)
 	var aim_y := clampf((0.62 - screen_position.y / viewport_size.y) * 1.5, -0.65, 0.8)
 	rally_speed = minf(MAX_SPEED, START_SPEED + score * RETURN_ACCELERATION)
-	ball_velocity = Vector3(aim_x * 1.55, 1.55 + aim_y * 1.25, -rally_speed)
+	ball_velocity = Vector3(aim_x * 1.0, 0.85 + aim_y * 0.6, -rally_speed)
 	spin = Vector3(-aim_y * 7.0, aim_x * 9.0, 0.0)
 	missed = false
 	_play_hand_animation(screen_position, quality)
@@ -128,9 +128,13 @@ func _handle_wall_collision() -> void:
 		return
 	ball.position.z = WALL_Z + BALL_RADIUS
 	ball_velocity.z = absf(ball_velocity.z) * 0.78
-	ball_velocity.x += spin.y * 0.018
-	ball_velocity.y = maxf(ball_velocity.y - spin.x * 0.012, 1.35)
-	spin *= 0.78
+	# Guide every return into a calm, reachable window near screen center.
+	var return_time := maxf(0.8, (HIT_PLANE_Z - ball.position.z) / ball_velocity.z)
+	var target_x := clampf(ball.position.x * 0.18, -0.75, 0.75)
+	var target_y := -0.15
+	ball_velocity.x = (target_x - ball.position.x) / return_time
+	ball_velocity.y = (target_y - ball.position.y + 0.5 * 0.85 * return_time * return_time) / return_time
+	spin *= 0.45
 	score += 1
 	score_label.text = str(score)
 	if score > best_score:
@@ -140,12 +144,12 @@ func _handle_wall_collision() -> void:
 	_haptic(12)
 
 func _handle_side_bounds() -> void:
-	if absf(ball.position.x) > 4.65:
-		ball.position.x = signf(ball.position.x) * 4.65
-		ball_velocity.x *= -0.72
-	if ball.position.y > 5.0:
-		ball.position.y = 5.0
-		ball_velocity.y *= -0.65
+	if absf(ball.position.x) > 3.8:
+		ball.position.x = signf(ball.position.x) * 3.8
+		ball_velocity.x = -signf(ball.position.x) * absf(ball_velocity.x) * 0.55
+	if ball.position.y > 3.65:
+		ball.position.y = 3.65
+		ball_velocity.y = -absf(ball_velocity.y) * 0.45
 
 func _drop_ball() -> void:
 	if state != GameState.PLAYING:
