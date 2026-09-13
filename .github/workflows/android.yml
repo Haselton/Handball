@@ -40,6 +40,7 @@ jobs:
             'export/android/debug_keystore_user = "androiddebugkey"' \
             'export/android/debug_keystore_pass = "android"' \
             > "$HOME/.config/godot/editor_settings-4.tres"
+          mkdir -p build/android
       - name: Export Handball APK
         id: export
         uses: firebelley/godot-export@v8.0.0
