@@ -549,9 +549,12 @@ func _build_ui() -> void:
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	score_label.add_theme_font_size_override("font_size", 54)
 	score_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.96))
+	score_label.add_theme_font_size_override("outline_size", 8)
+	score_label.add_theme_color_override("font_outline_color", Color(0.02, 0.025, 0.03, 0.95))
 	score_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	# Keep gameplay status below the physical billboard/ad overlay.
-	score_label.position = Vector2(-100, 270)
+	# The lower half of the billboard is deliberately reserved for the score.
+	# This fills the otherwise-empty black panel and keeps the number high contrast.
+	score_label.position = Vector2(-100, 188)
 	score_label.size = Vector2(200, 68)
 	root.add_child(score_label)
 
@@ -559,6 +562,8 @@ func _build_ui() -> void:
 	target_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	target_label.add_theme_font_size_override("font_size", 18)
 	target_label.add_theme_color_override("font_color", Color("ffd78a"))
+	target_label.add_theme_font_size_override("outline_size", 5)
+	target_label.add_theme_color_override("font_outline_color", Color(0.02, 0.025, 0.03, 0.95))
 	target_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	target_label.position = Vector2(-190, 334)
 	target_label.size = Vector2(380, 34)
@@ -586,6 +591,8 @@ func _build_ui() -> void:
 	best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	best_label.add_theme_font_size_override("font_size", 18)
 	best_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.72))
+	best_label.add_theme_font_size_override("outline_size", 5)
+	best_label.add_theme_color_override("font_outline_color", Color(0.02, 0.025, 0.03, 0.95))
 	best_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	best_label.position = Vector2(-100, 368)
 	best_label.size = Vector2(200, 30)
