@@ -15,10 +15,6 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
-      - name: Configure Godot Android paths
-        run: |
-          mkdir -p "$HOME/.config/godot"
-          printf '%s\n' +            '[gd_resource type="EditorSettings" format=3]' +            '' +            '[resource]' +            "export/android/android_sdk_path = \"$ANDROID_HOME\"" +            "export/android/java_sdk_path = \"$JAVA_HOME\"" +            > "$HOME/.config/godot/editor_settings-4.tres"
       - name: Create debug signing key
         run: |
           mkdir -p "$HOME/.android"
