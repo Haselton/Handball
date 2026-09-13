@@ -41,6 +41,9 @@ var targets_hit := 0
 var target_goal := 5
 var target_position := Vector2(0.0, 1.0)
 var ad_service: AdService
+var play_games_service: PlayGamesService
+var profile_button: Button
+var leaderboard_button: Button
 
 func _ready() -> void:
 	best_score = int(_load_best())
@@ -50,6 +53,11 @@ func _ready() -> void:
 	_build_hand()
 	_build_ui()
 	_build_audio()
+	play_games_service = PlayGamesService.new()
+	add_child(play_games_service)
+	play_games_service.authentication_changed.connect(_on_play_games_authentication_changed)
+	play_games_service.leaderboard_unavailable.connect(_show_status_message)
+
 	ad_service = AdService.new()
 	add_child(ad_service)
 	ad_service.interstitial_closed.connect(_restart_round)
@@ -158,6 +166,7 @@ func _handle_wall_collision() -> void:
 		targets_hit += 1
 		_move_target()
 		if targets_hit >= target_goal:
+			play_games_service.submit_progress(court_level, targets_hit, score + target_points)
 			court_level += 1
 			targets_hit = 0
 			target_goal = mini(10, 4 + court_level)
@@ -188,6 +197,7 @@ func _drop_ball() -> void:
 		return
 	state = GameState.LOST
 	missed = true
+	play_games_service.submit_progress(court_level, targets_hit, score)
 	ad_service.note_round_finished()
 	if score >= best_score:
 		_save_best(best_score)
@@ -469,6 +479,22 @@ func _build_ui() -> void:
 	root.add_child(target_label)
 	_update_target_label()
 
+	profile_button = Button.new()
+	profile_button.text = "GUEST  •  SIGN IN"
+	profile_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	profile_button.position = Vector2(24, 30)
+	profile_button.size = Vector2(190, 52)
+	profile_button.pressed.connect(_on_profile_pressed)
+	root.add_child(profile_button)
+
+	leaderboard_button = Button.new()
+	leaderboard_button.text = "🏆  GLOBAL"
+	leaderboard_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	leaderboard_button.position = Vector2(-190, 30)
+	leaderboard_button.size = Vector2(166, 52)
+	leaderboard_button.pressed.connect(_on_leaderboard_pressed)
+	root.add_child(leaderboard_button)
+
 	best_label = Label.new()
 	best_label.text = "BEST %d" % best_score
 	best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -631,3 +657,22 @@ func _save_best(value: int) -> void:
 	config.set_value("scores", "best", value)
 	config.save("user://save.cfg")
 
+
+func _on_profile_pressed() -> void:
+	play_games_service.request_sign_in()
+
+func _on_leaderboard_pressed() -> void:
+	play_games_service.show_highest_court_leaderboard()
+
+func _on_play_games_authentication_changed(authenticated: bool, player_name: String) -> void:
+	profile_button.text = ("●  " + player_name.to_upper()) if authenticated else "GUEST  •  SIGN IN"
+
+func _show_status_message(message: String) -> void:
+	instruction_label.text = message
+	instruction_label.visible = true
+	var tween := create_tween()
+	tween.tween_interval(1.8)
+	tween.tween_callback(func():
+		if state != GameState.READY:
+			instruction_label.visible = false
+	)
