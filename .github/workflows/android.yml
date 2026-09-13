@@ -37,6 +37,22 @@ jobs:
             'export/android/debug_keystore_pass = "android"' \
             > "$HOME/.config/godot/editor_settings-4.5.tres"
           mkdir -p build/android
+      - name: Install AdMob and Android build templates
+        run: |
+          work_dir="$(mktemp -d)"
+          curl -L --retry 3 -o "$work_dir/admob.zip" https://github.com/poingstudios/godot-admob-plugin/releases/download/v5.1.0/poing-godot-admob-v5.1.0.zip
+          unzip -q "$work_dir/admob.zip" -d "$work_dir/admob"
+          mkdir -p addons
+          cp -R "$work_dir/admob/poing-godot-admob/addons/admob" addons/admob
+          curl -L --retry 3 -o "$work_dir/admob-android.zip" https://github.com/poingstudios/godot-admob-plugin/releases/download/v5.1.0/android-template-v4.5.1.zip
+          mkdir -p addons/admob/android/bin
+          unzip -q "$work_dir/admob-android.zip" -d addons/admob/android/bin
+          curl -L --retry 3 -o "$work_dir/templates.tpz" https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          unzip -q "$work_dir/templates.tpz" -d "$work_dir/templates"
+          source_zip="$(find "$work_dir/templates" -type f -name android_source.zip -print -quit)"
+          test -n "$source_zip"
+          mkdir -p android/build
+          unzip -q "$source_zip" -d android/build
       - name: Export Handball APK
         id: export
         env:
