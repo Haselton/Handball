@@ -47,6 +47,7 @@ var leaderboard_button: Button
 
 func _ready() -> void:
 	best_score = int(_load_best())
+	_build_background_plate()
 	_build_environment()
 	_build_target()
 	_build_ball()
@@ -241,8 +242,8 @@ func _toggle_pause() -> void:
 func _build_environment() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("87b9dc")
+	# Let the photographed background plate show through the 3D viewport.
+	environment.background_mode = Environment.BG_CANVAS
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("c4d6e5")
 	environment.ambient_light_energy = 0.55
@@ -266,10 +267,19 @@ func _build_environment() -> void:
 	sun.directional_shadow_max_distance = 30.0
 	add_child(sun)
 
-	_build_floor()
-	_build_block_wall()
-	_build_billboard()
-	_build_fences()
+
+func _build_background_plate() -> void:
+	var background_layer := CanvasLayer.new()
+	background_layer.layer = -1
+	add_child(background_layer)
+	var background := TextureRect.new()
+	background.name = "UrbanCourtBackground"
+	background.texture = load("res://assets/urban_court_background.png")
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	background_layer.add_child(background)
 
 func _build_billboard() -> void:
 	# The structure is real 3D scenery. The native Android ad bridge places an
