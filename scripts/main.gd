@@ -4,11 +4,11 @@ enum GameState { READY, PLAYING, LOST, PAUSED }
 
 const BALL_RADIUS := 0.18
 const WALL_Z := -10.0
-const HIT_PLANE_Z := 1.1
+const HIT_PLANE_Z := 1.65
 const FLOOR_Y := -1.55
-const START_SPEED := 12.5
-const MAX_SPEED := 30.0
-const RETURN_ACCELERATION := 0.22
+const START_SPEED := 8.5
+const MAX_SPEED := 14.0
+const RETURN_ACCELERATION := 0.08
 
 var state := GameState.READY
 var score := 0
@@ -20,6 +20,8 @@ var last_ball_position := Vector3.ZERO
 var touch_start := Vector2.ZERO
 var touch_time_ms := 0
 var missed := false
+var buffered_strike_position := Vector2.ZERO
+var buffered_strike_until_ms := 0
 
 var ball: MeshInstance3D
 var ball_shadow: Decal
@@ -51,7 +53,7 @@ func _physics_process(delta: float) -> void:
 	if state != GameState.PLAYING:
 		return
 	last_ball_position = ball.position
-	ball_velocity.y -= 1.5 * delta
+	ball_velocity.y -= 0.85 * delta
 	ball_velocity += spin.cross(ball_velocity.normalized()) * 0.025 * delta
 	ball.position += ball_velocity * delta
 	ball.rotate_x(ball_velocity.z * delta * 1.8)
@@ -60,6 +62,7 @@ func _physics_process(delta: float) -> void:
 	_handle_side_bounds()
 	_update_shadow()
 	_update_reticle()
+	_consume_buffered_strike()
 	if ball.position.z > HIT_PLANE_Z + 0.65:
 		_drop_ball()
 	elif ball.position.y < FLOOR_Y - BALL_RADIUS:
@@ -85,19 +88,35 @@ func _try_strike(screen_position: Vector2) -> void:
 	if state == GameState.LOST or state == GameState.PAUSED:
 		return
 	var ball_screen := camera.unproject_position(ball.global_position)
-	var apparent_radius := clampf(160.0 / maxf(0.8, absf(ball.position.z - camera.position.z)), 42.0, 135.0)
+	var apparent_radius := clampf(230.0 / maxf(0.8, absf(ball.position.z - camera.position.z)), 56.0, 180.0)
 	var distance := screen_position.distance_to(ball_screen)
-	var close_enough := ball.position.z > -0.25 and distance <= apparent_radius * 1.4
-	if close_enough:
-		var quality := clampf(1.0 - distance / (apparent_radius * 1.4), 0.15, 1.0)
+	var ball_is_returning := ball_velocity.z > 0.0
+	var strike_zone := ball.position.z > -4.0
+	var generous_contact := distance <= maxf(210.0, apparent_radius * 3.0)
+	if ball_is_returning and strike_zone and generous_contact:
+		var quality := clampf(1.0 - distance / maxf(260.0, apparent_radius * 3.0), 0.35, 1.0)
 		_launch_toward_wall(screen_position, quality)
+	else:
+		buffered_strike_position = screen_position
+		buffered_strike_until_ms = Time.get_ticks_msec() + 650
+
+func _consume_buffered_strike() -> void:
+	if buffered_strike_until_ms <= 0 or Time.get_ticks_msec() > buffered_strike_until_ms:
+		buffered_strike_until_ms = 0
+		return
+	if ball_velocity.z > 0.0 and ball.position.z > -4.0:
+		var screen_point := camera.unproject_position(ball.global_position)
+		var distance := buffered_strike_position.distance_to(screen_point)
+		if distance <= 280.0 or ball.position.z > -1.25:
+			buffered_strike_until_ms = 0
+			_launch_toward_wall(buffered_strike_position, 0.72)
 
 func _launch_toward_wall(screen_position: Vector2, quality: float) -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	var aim_x := clampf((screen_position.x / viewport_size.x - 0.5) * 2.0, -1.0, 1.0)
 	var aim_y := clampf((0.62 - screen_position.y / viewport_size.y) * 1.5, -0.65, 0.8)
 	rally_speed = minf(MAX_SPEED, START_SPEED + score * RETURN_ACCELERATION)
-	ball_velocity = Vector3(aim_x * 2.7, 1.2 + aim_y * 2.4, -rally_speed)
+	ball_velocity = Vector3(aim_x * 1.55, 1.55 + aim_y * 1.25, -rally_speed)
 	spin = Vector3(-aim_y * 7.0, aim_x * 9.0, 0.0)
 	missed = false
 	_play_hand_animation(screen_position, quality)
@@ -108,9 +127,9 @@ func _handle_wall_collision() -> void:
 	if ball.position.z - BALL_RADIUS > WALL_Z:
 		return
 	ball.position.z = WALL_Z + BALL_RADIUS
-	ball_velocity.z = absf(ball_velocity.z) * 0.88
-	ball_velocity.x += spin.y * 0.035
-	ball_velocity.y -= spin.x * 0.025
+	ball_velocity.z = absf(ball_velocity.z) * 0.78
+	ball_velocity.x += spin.y * 0.018
+	ball_velocity.y = maxf(ball_velocity.y - spin.x * 0.012, 1.35)
 	spin *= 0.78
 	score += 1
 	score_label.text = str(score)
@@ -162,6 +181,7 @@ func _reset_ball(serve: bool) -> void:
 	ball.position = Vector3(0.0, -0.25, -2.25)
 	ball_velocity = Vector3.ZERO
 	spin = Vector3.ZERO
+	buffered_strike_until_ms = 0
 	ball.visible = true
 	reticle.visible = serve
 	_update_shadow()
@@ -465,9 +485,9 @@ func _update_reticle() -> void:
 	if camera.is_position_behind(ball.global_position):
 		reticle.visible = false
 		return
-	reticle.visible = ball.position.z > -1.8
+	reticle.visible = ball.position.z > -4.0
 	var point := camera.unproject_position(ball.global_position)
-	var scale_amount := clampf(4.1 / maxf(1.1, camera.position.distance_to(ball.position)), 0.55, 1.35)
+	var scale_amount := clampf(5.8 / maxf(1.1, camera.position.distance_to(ball.position)), 0.8, 1.65)
 	reticle.position = point - reticle.size * 0.5
 	reticle.scale = Vector2.ONE * scale_amount
 
