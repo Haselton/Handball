@@ -53,9 +53,9 @@ jobs:
           test -n "$source_zip"
           mkdir -p "$work_dir/android-source" android/build
           unzip -q "$source_zip" -d "$work_dir/android-source"
-          build_gradle="$(find "$work_dir/android-source" -type f -name build.gradle -print -quit)"
-          test -n "$build_gradle"
-          template_root="$(dirname "$build_gradle")"
+          settings_gradle="$(find "$work_dir/android-source" -type f -name settings.gradle -print -quit)"
+          test -n "$settings_gradle"
+          template_root="$(dirname "$settings_gradle")"
           cp -R "$template_root"/. android/build/
       - name: Export Handball APK
         id: export
