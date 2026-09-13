@@ -13,6 +13,17 @@ func initialize() -> void:
 	# The production AdMob plugin is connected here. Test builds deliberately
 	# continue without ads when no Android plugin singleton is installed.
 	preload_ads()
+	show_billboard_banner()
+
+func show_billboard_banner() -> void:
+	# HandballAdMob owns the Android anchored-adaptive view. Its implementation
+	# maps this placement to the reserved billboard face and must use Google's
+	# test unit ID in debug builds. The Godot scene keeps a TEST AD house sign
+	# visible when the native bridge is unavailable.
+	if Engine.has_singleton("HandballAdMob"):
+		var bridge = Engine.get_singleton("HandballAdMob")
+		if bridge.has_method("show_billboard_banner"):
+			bridge.show_billboard_banner()
 
 func preload_ads() -> void:
 	_interstitial_ready = false
