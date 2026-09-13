@@ -33,12 +33,19 @@ var game_over_panel: Control
 var final_score_label: Label
 var reticle: Control
 var impact_flash: OmniLight3D
-var hand: MeshInstance3D
+var hand: Node3D
+var wall_target: Node3D
+var target_label: Label
+var court_level := 1
+var targets_hit := 0
+var target_goal := 5
+var target_position := Vector2(0.0, 1.0)
 var ad_service: AdService
 
 func _ready() -> void:
 	best_score = int(_load_best())
 	_build_environment()
+	_build_target()
 	_build_ball()
 	_build_hand()
 	_build_ui()
@@ -113,10 +120,19 @@ func _consume_buffered_strike() -> void:
 
 func _launch_toward_wall(screen_position: Vector2, quality: float) -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
-	var aim_x := clampf((screen_position.x / viewport_size.x - 0.5) * 2.0, -1.0, 1.0)
-	var aim_y := clampf((0.62 - screen_position.y / viewport_size.y) * 1.5, -0.65, 0.8)
+	var ball_screen := camera.unproject_position(ball.global_position)
+	var touch_offset := (screen_position - ball_screen) / 230.0
 	rally_speed = minf(MAX_SPEED, START_SPEED + score * RETURN_ACCELERATION)
-	ball_velocity = Vector3(aim_x * 1.0, 0.85 + aim_y * 0.6, -rally_speed)
+	var flight_time := maxf(0.8, (ball.position.z - WALL_Z) / rally_speed)
+	var desired_x := clampf(target_position.x + touch_offset.x * 1.15, -3.5, 3.5)
+	var desired_y := clampf(target_position.y - touch_offset.y * 1.0, -0.8, 2.8)
+	ball_velocity = Vector3(
+		(desired_x - ball.position.x) / flight_time,
+		(desired_y - ball.position.y + 0.5 * 0.85 * flight_time * flight_time) / flight_time,
+		-rally_speed
+	)
+	var aim_x := clampf(touch_offset.x, -1.0, 1.0)
+	var aim_y := clampf(-touch_offset.y, -1.0, 1.0)
 	spin = Vector3(-aim_y * 7.0, aim_x * 9.0, 0.0)
 	missed = false
 	_play_hand_animation(screen_position, quality)
@@ -135,8 +151,24 @@ func _handle_wall_collision() -> void:
 	ball_velocity.x = (target_x - ball.position.x) / return_time
 	ball_velocity.y = (target_y - ball.position.y + 0.5 * 0.85 * return_time * return_time) / return_time
 	spin *= 0.45
-	score += 1
+	var target_distance := Vector2(ball.position.x, ball.position.y).distance_to(target_position)
+	var target_points := 0
+	if target_distance <= 0.95:
+		target_points = 3 if target_distance <= 0.32 else (2 if target_distance <= 0.62 else 1)
+		targets_hit += 1
+		_move_target()
+		if targets_hit >= target_goal:
+			court_level += 1
+			targets_hit = 0
+			target_goal = mini(10, 4 + court_level)
+			instruction_label.text = "COURT %d CLEARED" % (court_level - 1)
+			instruction_label.visible = true
+			var clear_tween := create_tween()
+			clear_tween.tween_interval(1.25)
+			clear_tween.tween_callback(func(): instruction_label.visible = false)
+	score += 1 + target_points
 	score_label.text = str(score)
+	_update_target_label()
 	if score > best_score:
 		best_score = score
 		best_label.text = "BEST %d" % best_score
@@ -296,6 +328,36 @@ func _build_fences() -> void:
 			post.position = Vector3(side * 5.1, 0.55, -8.8 + post_index * 3.2)
 			add_child(post)
 
+func _build_target() -> void:
+	wall_target = Node3D.new()
+	wall_target.name = "WallTarget"
+	wall_target.position = Vector3(target_position.x, target_position.y, WALL_Z + 0.19)
+	wall_target.rotation_degrees.x = 90.0
+	add_child(wall_target)
+	var colors := [Color("f5a623"), Color("f7efe0"), Color("ed5a3a")]
+	var radii := [0.92, 0.58, 0.25]
+	for index_index index in range(3):
+		var disk := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = radii[index]
+		mesh.bottom_radius = radii[index]
+		mesh.height = 0.018 + float(index) * 0.006
+		mesh.radial_segments = 48
+		mesh.material = _material(colors[index], 0.55, 0.0)
+		disk.mesh = mesh
+		disk.position.y = float(index) * 0.014
+		wall_target.add_child(disk)
+
+func _move_target() -> void:
+	target_position = Vector2(randf_range(-3.1, 3.1), randf_range(-0.65, 2.55))
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(wall_target, "position", Vector3(target_position.x, target_position.y, WALL_Z + 0.19), 0.28)
+
+func _update_target_label() -> void:
+	if target_label != null:
+		target_label.text = "COURT %d   TARGETS %d/%d" % [court_level, targets_hit, target_goal]
+
 func _build_ball() -> void:
 	ball = MeshInstance3D.new()
 	ball.name = "BlueRacquetball"
@@ -326,16 +388,58 @@ func _build_ball() -> void:
 	add_child(impact_flash)
 
 func _build_hand() -> void:
-	# Low-cost prototype silhouette; replace with the rigged Blender hand GLB.
-	hand = MeshInstance3D.new()
-	var palm := CapsuleMesh.new()
-	palm.radius = 0.23
-	palm.height = 0.72
-	palm.material = _material(Color("b97852"), 0.72, 0.0)
-	hand.mesh = palm
-	hand.position = Vector3(0.75, -1.7, 0.25)
-	hand.rotation_degrees = Vector3(76, 0, 18)
+	hand = Node3D.new()
+	hand.name = "PlayerHand"
+	hand.visible = false
 	add_child(hand)
+	var skin := _material(Color("8b5a3c"), 0.78, 0.0)
+
+	var palm := MeshInstance3D.new()
+	var palm_mesh := SphereMesh.new()
+	palm_mesh.radius = 0.42
+	palm_mesh.height = 0.82
+	palm_mesh.radial_segments = 24
+	palm_mesh.rings = 12
+	palm_mesh.material = skin
+	palm.mesh = palm_mesh
+	palm.scale = Vector3(0.82, 1.0, 0.42)
+	hand.add_child(palm)
+
+	var finger_x := [-0.27, -0.09, 0.09, 0.27]
+	var finger_length := [0.47, 0.58, 0.55, 0.43]
+	for index in range(4):
+		var finger := MeshInstance3D.new()
+		var finger_mesh := CapsuleMesh.new()
+		finger_mesh.radius = 0.075
+		finger_mesh.height = finger_length[index]
+		finger_mesh.radial_segments = 16
+		finger_mesh.rings = 8
+		finger_mesh.material = skin
+		finger.mesh = finger_mesh
+		finger.position = Vector3(finger_x[index], 0.43 + finger_length[index] * 0.38, -0.015)
+		hand.add_child(finger)
+
+	var thumb := MeshInstance3D.new()
+	var thumb_mesh := CapsuleMesh.new()
+	thumb_mesh.radius = 0.09
+	thumb_mesh.height = 0.42
+	thumb_mesh.radial_segments = 16
+	thumb_mesh.rings = 8
+	thumb_mesh.material = skin
+	thumb.mesh = thumb_mesh
+	thumb.position = Vector3(-0.39, 0.02, -0.015)
+	thumb.rotation_degrees.z = -52.0
+	hand.add_child(thumb)
+
+	var wrist := MeshInstance3D.new()
+	var wrist_mesh := CapsuleMesh.new()
+	wrist_mesh.radius = 0.20
+	wrist_mesh.height = 0.55
+	wrist_mesh.material = skin
+	wrist.mesh = wrist_mesh
+	wrist.position = Vector3(0.0, -0.48, 0.02)
+	hand.add_child(wrist)
+	hand.position = Vector3(0.75, -1.7, 0.25)
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -354,6 +458,16 @@ func _build_ui() -> void:
 	score_label.position = Vector2(-100, 44)
 	score_label.size = Vector2(200, 68)
 	root.add_child(score_label)
+
+	target_label = Label.new()
+	target_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	target_label.add_theme_font_size_override("font_size", 18)
+	target_label.add_theme_color_override("font_color", Color("ffd78a"))
+	target_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	target_label.position = Vector2(-190, 116)
+	target_label.size = Vector2(380, 34)
+	root.add_child(target_label)
+	_update_target_label()
 
 	best_label = Label.new()
 	best_label.text = "BEST %d" % best_score
