@@ -44,7 +44,6 @@ var ad_service: AdService
 var play_games_service: PlayGamesService
 var profile_button: Button
 var leaderboard_button: Button
-var billboard_ad_copy: Label3D
 
 func _ready() -> void:
 	best_score = int(_load_best())
@@ -62,7 +61,6 @@ func _ready() -> void:
 	ad_service = AdService.new()
 	add_child(ad_service)
 	ad_service.interstitial_closed.connect(_restart_round)
-	ad_service.billboard_loaded.connect(_on_billboard_loaded)
 	ad_service.initialize()
 	_reset_ball(true)
 
@@ -243,18 +241,8 @@ func _toggle_pause() -> void:
 func _build_environment() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("31556f")
-	sky_material.sky_horizon_color = Color("b6c3c0")
-	sky_material.ground_bottom_color = Color("20262a")
-	sky_material.ground_horizon_color = Color("8c9188")
-	sky_material.sun_angle_max = 7.0
-	sky_material.sun_curve = 0.12
-	sky_material.sun_energy_multiplier = 2.2
-	sky.sky_material = sky_material
-	environment.sky = sky
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("87b9dc")
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("c4d6e5")
 	environment.ambient_light_energy = 0.55
@@ -279,7 +267,6 @@ func _build_environment() -> void:
 	add_child(sun)
 
 	_build_floor()
-	_build_distant_city()
 	_build_block_wall()
 	_build_billboard()
 	_build_fences()
@@ -295,18 +282,18 @@ func _build_billboard() -> void:
 
 	var face := MeshInstance3D.new()
 	var face_mesh := BoxMesh.new()
-	face_mesh.size = Vector3(8.15, 1.62, 0.16)
+	face_mesh.size = Vector3(5.35, 1.48, 0.16)
 	face_mesh.material = face_material
 	face.mesh = face_mesh
-	face.position = Vector3(0.0, 6.42, WALL_Z - 0.12)
+	face.position = Vector3(0.0, 6.35, WALL_Z - 0.12)
 	billboard.add_child(face)
 
 	# Chunky frame rails make the banner read as part of the court instead of UI.
 	for rail in [
-		[Vector3(0.0, 7.28, WALL_Z + 0.01), Vector3(8.48, 0.14, 0.24)],
-		[Vector3(0.0, 5.56, WALL_Z + 0.01), Vector3(8.48, 0.14, 0.24)],
-		[Vector3(-4.17, 6.42, WALL_Z + 0.01), Vector3(0.14, 1.84, 0.24)],
-		[Vector3(4.17, 6.42, WALL_Z + 0.01), Vector3(0.14, 1.84, 0.24)]
+		[Vector3(0.0, 7.14, WALL_Z + 0.01), Vector3(5.72, 0.12, 0.22)],
+		[Vector3(0.0, 5.56, WALL_Z + 0.01), Vector3(5.72, 0.12, 0.22)],
+		[Vector3(-2.80, 6.35, WALL_Z + 0.01), Vector3(0.12, 1.70, 0.22)],
+		[Vector3(2.80, 6.35, WALL_Z + 0.01), Vector3(0.12, 1.70, 0.22)]
 	]:
 		var rail_mesh_instance := MeshInstance3D.new()
 		var rail_mesh := BoxMesh.new()
@@ -316,7 +303,7 @@ func _build_billboard() -> void:
 		rail_mesh_instance.position = rail[0]
 		billboard.add_child(rail_mesh_instance)
 
-	for x in [-2.85, 2.85]:
+	for x in [-1.85, 1.85]:
 		var post := MeshInstance3D.new()
 		var post_mesh := BoxMesh.new()
 		post_mesh.size = Vector3(0.14, 2.25, 0.18)
@@ -325,37 +312,33 @@ func _build_billboard() -> void:
 		post.position = Vector3(x, 5.18, WALL_Z - 0.17)
 		billboard.add_child(post)
 
-	billboard_ad_copy = Label3D.new()
-	billboard_ad_copy.text = "LOADING TEST AD…"
-	billboard_ad_copy.font_size = 52
-	billboard_ad_copy.outline_size = 8
-	billboard_ad_copy.modulate = Color("c8d0d2")
-	billboard_ad_copy.outline_modulate = Color("132433")
-	billboard_ad_copy.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	billboard_ad_copy.position = Vector3(0.0, 6.42, WALL_Z + 0.02)
-	billboard_ad_copy.pixel_size = 0.0062
-	billboard_ad_copy.no_depth_test = true
-	billboard.add_child(billboard_ad_copy)
+	var ad_copy := Label3D.new()
+	ad_copy.text = "HANDBALL\nTEST AD"
+	ad_copy.font_size = 74
+	ad_copy.outline_size = 10
+	ad_copy.modulate = Color("f2f6f8")
+	ad_copy.outline_modulate = Color("132433")
+	ad_copy.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ad_copy.position = Vector3(0.0, 6.34, WALL_Z + 0.02)
+	ad_copy.pixel_size = 0.0062
+	ad_copy.no_depth_test = true
+	billboard.add_child(ad_copy)
 
 	var disclosure := Label3D.new()
 	disclosure.text = "ADVERTISEMENT"
 	disclosure.font_size = 34
 	disclosure.modulate = Color(1, 1, 1, 0.72)
-	disclosure.position = Vector3(0.0, 7.46, WALL_Z + 0.02)
+	disclosure.position = Vector3(0.0, 7.31, WALL_Z + 0.02)
 	disclosure.pixel_size = 0.0062
 	disclosure.no_depth_test = true
 	billboard.add_child(disclosure)
-
-func _on_billboard_loaded() -> void:
-	if billboard_ad_copy != null:
-		billboard_ad_copy.visible = false
 
 func _build_floor() -> void:
 	var floor := StaticBody3D.new()
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(12.0, 0.18, 18.0)
-	mesh.material = _material(Color("292b2b"), 0.94, 0.0)
+	mesh.material = _material(Color("34383a"), 0.92, 0.0)
 	mesh_instance.mesh = mesh
 	mesh_instance.position = Vector3(0, FLOOR_Y - 0.09, -3.0)
 	floor.add_child(mesh_instance)
@@ -367,51 +350,11 @@ func _build_floor() -> void:
 	floor.add_child(collision)
 	add_child(floor)
 
-func _build_distant_city() -> void:
-	# Low-detail silhouettes sit well behind the playable wall, giving the fixed
-	# camera the same layered depth used in the Newton's Cradle study scene.
-	var city := Node3D.new()
-	city.name = "DistantCity"
-	add_child(city)
-	var building_colors := [Color("30383c"), Color("3b4142"), Color("252d31"), Color("4b4b46")]
-	var widths := [2.4, 3.1, 1.8, 2.8, 2.0, 3.4, 2.2]
-	var heights := [6.4, 8.6, 5.2, 7.4, 9.2, 6.1, 7.9]
-	var x := -9.2
-	for index in range(widths.size()):
-		var building := MeshInstance3D.new()
-		var building_mesh := BoxMesh.new()
-		building_mesh.size = Vector3(widths[index], heights[index], 2.4)
-		building_mesh.material = _material(building_colors[index % building_colors.size()], 0.96, 0.0)
-		building.mesh = building_mesh
-		building.position = Vector3(x + widths[index] * 0.5, -0.8 + heights[index] * 0.5, -18.0 - float(index % 3))
-		city.add_child(building)
-		x += widths[index] + 0.28
-	# Rooftop vents and a water tank break the rectangular skyline.
-	for vent_x in [-5.2, 4.9]:
-		var vent := MeshInstance3D.new()
-		var vent_mesh := CylinderMesh.new()
-		vent_mesh.top_radius = 0.22
-		vent_mesh.bottom_radius = 0.28
-		vent_mesh.height = 1.2
-		vent_mesh.material = _material(Color("1d2427"), 0.55, 0.72)
-		vent.mesh = vent_mesh
-		vent.position = Vector3(vent_x, 7.1, -17.0)
-		city.add_child(vent)
-	var tank := MeshInstance3D.new()
-	var tank_mesh := CylinderMesh.new()
-	tank_mesh.top_radius = 0.78
-	tank_mesh.bottom_radius = 0.68
-	tank_mesh.height = 1.35
-	tank_mesh.material = _material(Color("353b39"), 0.82, 0.22)
-	tank.mesh = tank_mesh
-	tank.position = Vector3(-7.0, 7.35, -18.5)
-	city.add_child(tank)
-
 func _build_block_wall() -> void:
 	var wall_root := Node3D.new()
 	wall_root.name = "CinderBlockWall"
-	var block_colors := [Color("666862"), Color("70716a"), Color("5d615e"), Color("7a776e"), Color("686b67")]
-	var mortar_material := _material(Color("4c504d"), 1.0, 0.0)
+	var block_material := _material(Color("777a78"), 0.94, 0.0)
+	var mortar_material := _material(Color("9a9a91"), 1.0, 0.0)
 	var mortar := MeshInstance3D.new()
 	var mortar_mesh := BoxMesh.new()
 	mortar_mesh.size = Vector3(10.2, 7.0, 0.22)
@@ -429,31 +372,11 @@ func _build_block_wall() -> void:
 				continue
 			var block := MeshInstance3D.new()
 			var block_mesh := BoxMesh.new()
-			var variation := (row * 13 + column * 7) % block_colors.size()
-			var depth := 0.25 + float((row + column * 3) % 4) * 0.018
-			block_mesh.size = Vector3(block_width - 0.018, block_height - 0.018, depth)
-			block_mesh.material = _material(block_colors[variation], 0.96, 0.0)
+			block_mesh.size = Vector3(block_width, block_height, 0.28)
+			block_mesh.material = block_material
 			block.mesh = block_mesh
-			block.position = Vector3(x, -1.29 + row * 0.47, WALL_Z + 0.015 + depth * 0.08)
+			block.position = Vector3(x, -1.29 + row * 0.47, WALL_Z + 0.02)
 			wall_root.add_child(block)
-	# Dark runoff stains and old patchwork remove the pristine tiled look.
-	for stain_data in [[-3.8, 3.5, 0.34, 2.8], [2.7, 1.8, 0.46, 3.6], [0.7, 4.6, 0.25, 1.7]]:
-		var stain := MeshInstance3D.new()
-		var stain_mesh := BoxMesh.new()
-		stain_mesh.size = Vector3(stain_data[2], stain_data[3], 0.015)
-		var stain_material := _material(Color(0.12, 0.14, 0.13, 0.34), 1.0, 0.0)
-		stain_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		stain_mesh.material = stain_material
-		stain.mesh = stain_mesh
-		stain.position = Vector3(stain_data[0], stain_data[1], WALL_Z + 0.185)
-		wall_root.add_child(stain)
-	var wall_cap := MeshInstance3D.new()
-	var cap_mesh := BoxMesh.new()
-	cap_mesh.size = Vector3(10.4, 0.16, 0.52)
-	cap_mesh.material = _material(Color("555953"), 0.92, 0.0)
-	wall_cap.mesh = cap_mesh
-	wall_cap.position = Vector3(0.0, 5.55, WALL_Z + 0.02)
-	wall_root.add_child(wall_cap)
 	var body := StaticBody3D.new()
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
