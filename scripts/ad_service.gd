@@ -50,7 +50,7 @@ func _load_billboard_test_ad() -> void:
 			var initial_y := int(float(screen_size.y) * 0.17)
 			_native_billboard_ad.render_template(style, AdPosition.custom(0, initial_y), AdSize.BANNER)
 			_native_billboard_ad.on_template_rendered = func() -> void:
-				var ad_width := _native_billboard_ad.get_template_width_in_pixels()
+				var ad_width: float = float(_native_billboard_ad.get_template_width_in_pixels())
 				var centered_x := maxi(0, int((float(screen_size.x) - ad_width) * 0.5))
 				_native_billboard_ad.set_template_position(AdPosition.custom(centered_x, initial_y))
 				billboard_loaded.emit()
