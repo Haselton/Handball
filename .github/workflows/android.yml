@@ -16,7 +16,7 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - name: Install Android platform
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
       - name: Create debug signing key
         run: |
           mkdir -p "$HOME/.android"
@@ -43,6 +43,10 @@ jobs:
           mkdir -p build/android
       - name: Export Handball APK
         id: export
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ env.HOME }}/.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         uses: firebelley/godot-export@v8.0.0
         with:
           godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
