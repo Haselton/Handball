@@ -24,22 +24,21 @@ func _initialize_banner_ads() -> void:
 	MobileAds.initialize(listener)
 
 func _show_billboard_banner() -> void:
-	# Standard banner only. Google's official test unit is used in debug APKs.
+	# Standard 320x50 production banner seated inside the 3D billboard.
 	var screen_size := DisplayServer.screen_get_size()
 	var density := maxf(1.0, float(DisplayServer.screen_get_dpi()) / 160.0)
 	var logical_width := float(screen_size.x) / density
 	var logical_height := float(screen_size.y) / density
-	# AdMob only serves standard inventory reliably. Keep the creative at the
-	# supported 320x50 banner size and size the 3D billboard around it.
 	var billboard_size := AdSize.new(320, 50)
 	var banner_x := maxi(0, int((logical_width - 320.0) * 0.5))
 	var banner_y := maxi(0, int(logical_height * 0.223))
 	_billboard_banner = AdView.new(
-		"ca-app-pub-3940256099942544/6300978111",
+		"ca-app-pub-1051867648799965/5000010345",
 		billboard_size,
 		AdPosition.custom(banner_x, banner_y)
 	)
 	_billboard_banner.load_ad(AdRequest.new())
+
 func _exit_tree() -> void:
 	if _billboard_banner != null:
 		_billboard_banner.destroy()
