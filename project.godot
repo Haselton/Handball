@@ -1,5 +1,6 @@
 [application]
 config/name="Handball"
+config/icon="res://assets/handball_app_icon.png"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
