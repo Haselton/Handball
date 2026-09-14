@@ -432,7 +432,9 @@ func _build_target() -> void:
 	wall_target.position = Vector3(target_position.x, target_position.y, WALL_Z + 0.19)
 	wall_target.rotation_degrees.x = 90.0
 	add_child(wall_target)
-	var colors := [Color("f5a623"), Color("f7efe0"), Color("ed5a3a")]
+	# Match the court branding: electric-blue outer ring, crisp white middle,
+	# and a deep ink-blue bullseye drawn from the graffiti title palette.
+	var colors := [Color("168ee8"), Color("f4f8ff"), Color("06111d")]
 	var radii := [0.92, 0.58, 0.25]
 	for index in range(3):
 		var disk := MeshInstance3D.new()
