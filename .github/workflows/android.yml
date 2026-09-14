@@ -38,7 +38,7 @@ jobs:
             "export/android/release_keystore = \"$HOME/.android/handball-upload.keystore\"" \
             'export/android/release_keystore_user = "handballdebug"' \
             'export/android/release_keystore_pass = "android"' \
-            > "$HOME/.config/godot/editor_settings-4.5.tres"
+            > "$HOME/.config/godot/editor_settings-4.7.tres"
           mkdir -p build/android
       - name: Install AdMob and Android build templates
         run: |
@@ -47,10 +47,10 @@ jobs:
           unzip -q "$work_dir/admob.zip" -d "$work_dir/admob"
           mkdir -p addons
           cp -R "$work_dir/admob/poing-godot-admob/addons/admob" addons/admob
-          curl -L --retry 3 -o "$work_dir/admob-android.zip" https://github.com/poingstudios/godot-admob-plugin/releases/download/v5.1.0/android-template-v4.5.1.zip
+          curl -L --retry 3 -o "$work_dir/admob-android.zip" https://github.com/poingstudios/godot-admob-plugin/releases/download/v5.1.0/android-template-v4.7.2.zip
           mkdir -p addons/admob/android/bin
           unzip -q "$work_dir/admob-android.zip" -d addons/admob/android/bin
-          curl -L --retry 3 -o "$work_dir/templates.tpz" https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          curl -L --retry 3 -o "$work_dir/templates.tpz" https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
           unzip -q "$work_dir/templates.tpz" -d "$work_dir/templates"
           source_zip="$(find "$work_dir/templates" -type f -name android_source.zip -print -quit)"
           test -n "$source_zip"
@@ -60,7 +60,7 @@ jobs:
           test -n "$settings_gradle"
           template_root="$(dirname "$settings_gradle")"
           cp -R "$template_root"/. android/build/
-          printf '%s\n' '4.5.1.stable' > android/.build_version
+          printf '%s\n' '4.7.2.stable' > android/.build_version
       - name: Export Handball release AAB
         id: export
         env:
@@ -69,8 +69,8 @@ jobs:
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: android
         uses: firebelley/godot-export@v8.0.0
         with:
-          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
           relative_project_path: ./
           use_preset_export_path: true
           export_debug: false
