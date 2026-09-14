@@ -60,7 +60,8 @@ func _build_billboard_frame(banner_x: int, banner_y: int, logical_width: float, 
 	_billboard_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_billboard_frame.position = Vector2(
 		(float(banner_x) - inset_dp) * scale_x,
-		(float(banner_y) - inset_dp) * scale_y
+		# AdPosition.custom uses the banner's bottom edge for Y.
+		(float(banner_y) - 50.0 - inset_dp) * scale_y
 	)
 	_billboard_frame.size = Vector2(
 		(320.0 + inset_dp * 2.0) * scale_x,
