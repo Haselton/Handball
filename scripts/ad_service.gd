@@ -5,7 +5,6 @@ signal interstitial_closed
 signal rewarded_continue_earned
 
 var _billboard_banner
-var _billboard_frame: Panel
 
 var _rounds_since_ad := 0
 var _last_ad_time_ms := -90000
@@ -35,53 +34,16 @@ func _show_billboard_banner() -> void:
 	var billboard_size := AdSize.new(320, 50)
 	var banner_x := maxi(0, int((logical_width - 320.0) * 0.5))
 	var banner_y := maxi(0, int(logical_height * 0.223))
-	_build_billboard_frame(banner_x, banner_y, logical_width, logical_height)
 	_billboard_banner = AdView.new(
 		"ca-app-pub-3940256099942544/6300978111",
 		billboard_size,
 		AdPosition.custom(banner_x, banner_y)
 	)
 	_billboard_banner.load_ad(AdRequest.new())
-
-func _build_billboard_frame(banner_x: int, banner_y: int, logical_width: float, logical_height: float) -> void:
-	# The Android AdView is drawn above Godot, so the reliable way to frame it
-	# is a slightly larger Godot panel directly behind the exact native rect.
-	# Coordinates are converted from Android dp to the stretched Godot viewport.
-	var viewport_size := get_viewport().get_visible_rect().size
-	var scale_x := viewport_size.x / logical_width
-	var scale_y := viewport_size.y / logical_height
-	var inset_dp := 6.0
-
-	var layer := CanvasLayer.new()
-	layer.layer = 8
-	add_child(layer)
-
-	_billboard_frame = Panel.new()
-	_billboard_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_billboard_frame.position = Vector2(
-		(float(banner_x) - inset_dp) * scale_x,
-		# AdPosition.custom uses the banner's bottom edge for Y.
-		(float(banner_y) - 50.0 - inset_dp) * scale_y
-	)
-	_billboard_frame.size = Vector2(
-		(320.0 + inset_dp * 2.0) * scale_x,
-		(50.0 + inset_dp * 2.0) * scale_y
-	)
-	var bezel := StyleBoxFlat.new()
-	bezel.bg_color = Color("071018")
-	bezel.border_color = Color("149cff")
-	bezel.set_border_width_all(maxi(3, int(4.0 * minf(scale_x, scale_y))))
-	bezel.set_corner_radius_all(maxi(3, int(5.0 * minf(scale_x, scale_y))))
-	_billboard_frame.add_theme_stylebox_override("panel", bezel)
-	layer.add_child(_billboard_frame)
-
 func _exit_tree() -> void:
 	if _billboard_banner != null:
 		_billboard_banner.destroy()
 		_billboard_banner = null
-	if _billboard_frame != null:
-		_billboard_frame.queue_free()
-		_billboard_frame = null
 
 func preload_ads() -> void:
 	_interstitial_ready = false
