@@ -29,12 +29,10 @@ func _show_billboard_banner() -> void:
 	var density := maxf(1.0, float(DisplayServer.screen_get_dpi()) / 160.0)
 	var logical_width := float(screen_size.x) / density
 	var logical_height := float(screen_size.y) / density
-	# Calibrated to the inner opening of the branded digital billboard. The
-	# surrounding LED bezel remains visible on all four sides.
-	# Leave a deliberate inset so real creatives of different designs never
-	# cover the metal/LED bezel.
-	var billboard_size := AdSize.new(224, 46)
-	var banner_x := maxi(0, int((logical_width - 224.0) * 0.5))
+	# AdMob only serves standard inventory reliably. Keep the creative at the
+	# supported 320x50 banner size and size the 3D billboard around it.
+	var billboard_size := AdSize.new(320, 50)
+	var banner_x := maxi(0, int((logical_width - 320.0) * 0.5))
 	var banner_y := maxi(0, int(logical_height * 0.223))
 	_billboard_banner = AdView.new(
 		"ca-app-pub-3940256099942544/6300978111",
