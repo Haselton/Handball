@@ -306,7 +306,7 @@ func _build_billboard() -> void:
 	var face_mesh := BoxMesh.new()
 	# Sized for a native 320x50 AdMob banner. The face is intentionally wider
 	# than the creative so the steel/LED bezel remains visible.
-	face_mesh.size = Vector3(8.38, 1.95, 0.16)
+	face_mesh.size = Vector3(11.10, 1.95, 0.16)
 	face_mesh.material = face_material
 	face.mesh = face_mesh
 	face.position = Vector3(0.0, 6.35, WALL_Z - 0.12)
@@ -314,10 +314,10 @@ func _build_billboard() -> void:
 
 	# Chunky frame rails make the banner read as part of the court instead of UI.
 	for rail in [
-		[Vector3(0.0, 7.39, WALL_Z + 0.01), Vector3(8.72, 0.12, 0.22)],
-		[Vector3(0.0, 5.31, WALL_Z + 0.01), Vector3(8.72, 0.12, 0.22)],
-		[Vector3(-4.30, 6.35, WALL_Z + 0.01), Vector3(0.12, 2.20, 0.22)],
-		[Vector3(4.30, 6.35, WALL_Z + 0.01), Vector3(0.12, 2.20, 0.22)]
+		[Vector3(0.0, 7.39, WALL_Z + 0.01), Vector3(11.50, 0.12, 0.22)],
+		[Vector3(0.0, 5.31, WALL_Z + 0.01), Vector3(11.50, 0.12, 0.22)],
+		[Vector3(-5.68, 6.35, WALL_Z + 0.01), Vector3(0.12, 2.20, 0.22)],
+		[Vector3(5.68, 6.35, WALL_Z + 0.01), Vector3(0.12, 2.20, 0.22)]
 	]:
 		var rail_mesh_instance := MeshInstance3D.new()
 		var rail_mesh := BoxMesh.new()
@@ -327,7 +327,7 @@ func _build_billboard() -> void:
 		rail_mesh_instance.position = rail[0]
 		billboard.add_child(rail_mesh_instance)
 
-	for x in [-2.90, 2.90]:
+	for x in [-3.80, 3.80]:
 		var post := MeshInstance3D.new()
 		var post_mesh := BoxMesh.new()
 		post_mesh.size = Vector3(0.14, 2.25, 0.18)
