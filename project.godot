@@ -6,7 +6,7 @@ config/features=PackedStringArray("4.4", "GL Compatibility")
 [admob]
 
 general/android/enabled=true
-general/android/app_id="ca-app-pub-3940256099942544~3347511713"
+general/android/app_id="ca-app-pub-1051867648799965~7817745375"
 
 [editor_plugins]
 
