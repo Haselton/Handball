@@ -27,6 +27,8 @@ def main():
     # during Godot's initial native setup. Let those first-boot changes finish.
     print('Waiting for first-boot package and overlay configuration.', flush=True)
     time.sleep(30)
+    # Suppress Android's one-time immersive-mode tutorial in the test device.
+    adb('shell', 'settings', 'put', 'secure', 'immersive_mode_confirmations', 'confirmed')
     adb('logcat', '-c')
     activity = adb('shell', 'cmd', 'package', 'resolve-activity', '--brief', PACKAGE).stdout.strip().splitlines()[-1]
     if not activity.startswith(PACKAGE + '/'):
@@ -42,7 +44,7 @@ def main():
                 raise RuntimeError('Handball process exited during startup')
             pid = running.split()[0]
             app_log = adb('logcat', '-d', '--pid=' + pid).stdout
-            if re.search(r'SCRIPT ERROR|Parse Error|FATAL EXCEPTION|Fatal signal', app_log):
+            if re.search(r'SCRIPT ERROR|Parse Error|FATAL EXCEPTION|Fatal signal|E godot\s*:\s*ERROR:', app_log):
                 raise RuntimeError('Android runtime reported an app error')
             if all('Handball AdMob: ' + state in app_log for state in EXPECTED):
                 print('PASS: native AdMob initialized and all three test ad formats loaded.', flush=True)
