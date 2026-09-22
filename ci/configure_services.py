@@ -60,6 +60,12 @@ def configure(root, mode, environ):
             raise ValueError('Expected exactly one project setting: ' + key)
     project.write_text(text)
     build = root / 'android/build'
+    # Manually installed templates need the same import boundary as Godot's
+    # template installer. Otherwise a later export imports its own output.
+    (build / '.gdignore').touch()
+    output = root / 'build'
+    output.mkdir(exist_ok=True)
+    (output / '.gdignore').touch()
     manifest_path = build / 'src/main/AndroidManifest.xml'
     tree = ET.parse(manifest_path)
     app = tree.getroot().find('application')
