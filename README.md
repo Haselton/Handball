@@ -55,9 +55,12 @@ settings in `project.godot`):
 | `ADMOB_INTERSTITIAL_ID` | Handball interstitial ad unit ID |
 | `ADMOB_REWARDED_ID` | Handball rewarded ad unit ID |
 
-The existing Handball production AdMob application and banner IDs are retained.
-The remaining values are deliberately blank until obtained from the owner's
-consoles. Production export fails before building when these values are missing,
+The Handball production AdMob application and all three ad unit IDs are configured
+in `project.godot`. Interstitial uses `Between Rounds Interstitial`; rewarded uses
+`Save Rally Rewarded` with a reward of one `Rally Continue`. Actions variables can
+override these values when needed. The Play Games project and leaderboard IDs
+remain blank until obtained from the owner's console.
+Production export fails before building when required values are missing,
 malformed, or contain Google's sample ad publisher ID.
 
 In Play Console, link `com.haseltonmediagroup.handball` with the **Play App Signing**

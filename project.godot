@@ -41,8 +41,8 @@ enabled=PackedStringArray("res://addons/admob/plugin.cfg")
 play_games/app_id=""
 play_games/leaderboard_id=""
 ads/banner_id="ca-app-pub-1051867648799965/5000010345"
-ads/interstitial_id=""
-ads/rewarded_id=""
+ads/interstitial_id="ca-app-pub-1051867648799965/6034947308"
+ads/rewarded_id="ca-app-pub-1051867648799965/4965408217"
 
 [input]
 
