@@ -22,6 +22,11 @@ def adb(*args, check=True, binary=False):
 
 def main():
     adb('install', '-r', sys.argv[1])
+    # On a fresh emulator, Pixel resource overlays and package configuration
+    # updates continue after sys.boot_completed. They can recreate an activity
+    # during Godot's initial native setup. Let those first-boot changes finish.
+    print('Waiting for first-boot package and overlay configuration.', flush=True)
+    time.sleep(30)
     adb('logcat', '-c')
     activity = adb('shell', 'cmd', 'package', 'resolve-activity', '--brief', PACKAGE).stdout.strip().splitlines()[-1]
     if not activity.startswith(PACKAGE + '/'):
@@ -48,6 +53,10 @@ def main():
     finally:
         full_log = adb('logcat', '-d', check=False).stdout
         (OUT / 'emulator-logcat.txt').write_text(full_log)
+        if not pid:
+            started = re.search(r'Start proc (\d+):' + re.escape(PACKAGE) + r'/', full_log)
+            if started:
+                pid = started[1]
         if pid:
             app_log = adb('logcat', '-d', '--pid=' + pid, check=False).stdout
         (OUT / 'handball-logcat.txt').write_text(app_log)
