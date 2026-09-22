@@ -27,12 +27,55 @@ beveled block wall, court floor, blue ball, a `.blend` source, and exports a GLB
 to `assets/handball_court.glb`. The live prototype constructs equivalent
 geometry at runtime until the finished GLB and rigged hand are approved.
 
-## AdMob production hook
+## Android online services
 
-`scripts/ad_service.gd` expects an Android plugin singleton named
-`HandballAdMob`. Gameplay never blocks if the plugin or an ad is unavailable.
-Use Google test ad unit IDs during testing. Before production, connect the real
-HMG AdMob app/ad-unit IDs through the Android plugin and consent flow.
+`native/play_games` implements the `HandballPlayGames` Godot singleton using
+Google Play Games Services v2. The Android workflow copies the Java sources,
+registers the singleton in the manifest, initializes the SDK from Application,
+and checks the finished AAB for the native classes and registrations.
+The leaderboard displays completed courts (larger is better). Progress is saved
+locally and submitted after connection; opening Global while signed out resumes
+opening the leaderboard after a successful connection.
+
+All ads use the included Poing AdMob plugin. The old `HandballAdMob` placeholder
+is removed. The service updates UMP privacy choices before initialization, retains
+the billboard placement, logs load errors, retries banners with backoff, and
+resumes a saved rally only after the SDK reports an earned reward. The SERVICES
+button shows the latest connection/ad status for device troubleshooting.
+
+### Required production configuration
+
+Set these GitHub repository Actions variables (or the corresponding `[handball]`
+settings in `project.godot`):
+
+| Variable | Value from console |
+| --- | --- |
+| `PLAY_GAMES_APP_ID` | Numeric Game services project ID |
+| `PLAY_GAMES_LEADERBOARD_ID` | Published leaderboard ID for completed courts |
+| `ADMOB_INTERSTITIAL_ID` | Handball interstitial ad unit ID |
+| `ADMOB_REWARDED_ID` | Handball rewarded ad unit ID |
+
+The existing Handball production AdMob application and banner IDs are retained.
+The remaining values are deliberately blank until obtained from the owner's
+consoles. Production export fails before building when these values are missing,
+malformed, or contain Google's sample ad publisher ID.
+
+In Play Console, link `com.haseltonmediagroup.handball` with the **Play App Signing**
+certificate SHA-1, configure the leaderboard as an integer ordered largest first,
+and publish the Play Games configuration. Publishing the Android app alone does
+not publish its Play Games configuration. Set up/publish the applicable privacy
+messages in AdMob and confirm the Handball app is ready to serve ads.
+
+Branch builds and default manual runs are explicitly **diagnostic**: a separate
+`com.haseltonmediagroup.handball.diagnostic` package with Google sample ads and
+no production Play Games IDs. They verify compilation and packaging, not live
+authentication or production ad fill. Main and manual `production` builds require
+the real configuration. Do not upload diagnostic artifacts to the production app.
+
+After configuring the IDs, test the production-signed app through a Play testing
+track on a real device: connection, Global leaderboard, completed-court submission,
+banner, rewarded rally continuation, and interstitial dismissal. This device test
+is still required; build success does not prove account-side setup or ad serving.
 
 Interstitial policy in this build:
 

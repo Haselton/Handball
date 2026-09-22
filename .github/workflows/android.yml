@@ -1,13 +1,24 @@
-name: Build Android Production AAB
+name: Build Android Services
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Production requires all real service IDs
+        type: choice
+        options: [diagnostic, production]
+        default: diagnostic
   push:
-    branches: [main]
+    branches: [main, codex/fix-production-services]
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SERVICE_MODE: ${{ github.event.inputs.mode || (github.ref == 'refs/heads/main' && 'production' || 'diagnostic') }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v4
@@ -61,6 +72,15 @@ jobs:
           template_root="$(dirname "$settings_gradle")"
           cp -R "$template_root"/. android/build/
           printf '%s\n' '4.7.2.stable' > android/.build_version
+      - name: Test service configuration and release gate
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Install and configure native Play Games
+        env:
+          PLAY_GAMES_APP_ID: ${{ vars.PLAY_GAMES_APP_ID }}
+          PLAY_GAMES_LEADERBOARD_ID: ${{ vars.PLAY_GAMES_LEADERBOARD_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+          ADMOB_REWARDED_ID: ${{ vars.ADMOB_REWARDED_ID }}
+        run: python ci/configure_services.py --mode "$SERVICE_MODE"
       - name: Export Handball release AAB
         id: export
         env:
@@ -77,15 +97,19 @@ jobs:
           verbose: true
           cache: true
           presets_to_export: Android Release
-      - name: Collect production AAB
+      - name: Verify packaged native services
         run: |
           aab_path="$(find "$HOME/.local/share/godot/builds" build/android -type f -name '*.aab' -print -quit)"
           test -n "$aab_path"
           cp "$aab_path" build/android/Handball-release.aab
           test -s build/android/Handball-release.aab
           unzip -p build/android/Handball-release.aab base/manifest/AndroidManifest.xml > /dev/null
+          python ci/verify_services_bundle.py build/android/Handball-release.aab
+          if [ "$SERVICE_MODE" = diagnostic ]; then
+            mv build/android/Handball-release.aab build/android/Handball-diagnostic.aab
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: Handball-production-aab
-          path: build/android/Handball-release.aab
+          name: Handball-${{ env.SERVICE_MODE }}-aab
+          path: build/android/*.aab
           if-no-files-found: error
