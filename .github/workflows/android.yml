@@ -26,6 +26,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Install Android API 36 platform
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
       - name: Restore persistent Handball upload key
@@ -97,6 +99,8 @@ jobs:
           verbose: true
           cache: true
           presets_to_export: Android Release
+      - name: Verify game scripts and service behavior
+        run: python ci/check_godot.py "$HOME/.local/share/godot/godot_executable/Godot_v4.7.2-stable_linux.x86_64"
       - name: Verify packaged native services
         run: |
           aab_path="$(find "$HOME/.local/share/godot/builds" build/android -type f -name '*.aab' -print -quit)"
