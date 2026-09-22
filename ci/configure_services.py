@@ -95,6 +95,7 @@ def configure(root, mode, environ):
         preset = root / 'export_presets.cfg'
         data = preset.read_text().replace('com.haseltonmediagroup.handball"', 'com.haseltonmediagroup.handball.diagnostic"')
         data = data.replace('package/name="Handball"', 'package/name="Handball Diagnostics"')
+        data = data.replace('architectures/x86_64=false', 'architectures/x86_64=true')
         preset.write_text(data)
     print('Native Play Games installed; service configuration mode: ' + mode)
 

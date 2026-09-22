@@ -117,3 +117,43 @@ jobs:
           name: Handball-${{ env.SERVICE_MODE }}-aab
           path: build/android/*.aab
           if-no-files-found: error
+      - name: Export installable diagnostic APK
+        if: env.SERVICE_MODE == 'diagnostic'
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: /home/runner/.android/handball-upload.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: handballdebug
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: android
+        run: |
+          sed -i 's|gradle_build/export_format=1|gradle_build/export_format=0|' export_presets.cfg
+          "$HOME/.local/share/godot/godot_executable/Godot_v4.7.2-stable_linux.x86_64" \
+            --headless --path "$GITHUB_WORKSPACE" --export-release "Android Release" \
+            "$GITHUB_WORKSPACE/build/android/Handball-diagnostic.apk"
+          test -s build/android/Handball-diagnostic.apk
+      - uses: actions/upload-artifact@v4
+        if: env.SERVICE_MODE == 'diagnostic'
+        with:
+          name: Handball-diagnostic-apk
+          path: build/android/Handball-diagnostic.apk
+          if-no-files-found: error
+      - name: Enable emulator acceleration
+        if: env.SERVICE_MODE == 'diagnostic'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify native ad loading on Android
+        if: env.SERVICE_MODE == 'diagnostic'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7_pro
+          disable-animations: true
+          script: python ci/smoke_android.py build/android/Handball-diagnostic.apk
+      - uses: actions/upload-artifact@v4
+        if: always() && env.SERVICE_MODE == 'diagnostic'
+        with:
+          name: Handball-android-runtime-evidence
+          path: build/android/runtime/
+          if-no-files-found: warn

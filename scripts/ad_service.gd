@@ -88,6 +88,7 @@ func _start_ads_if_allowed() -> void:
 func _on_ads_initialized(_status: Dictionary) -> void:
 	_initialized = true
 	_initializing = false
+	print("Handball AdMob: initialized")
 	_load_banner()
 	preload_ads()
 
@@ -117,6 +118,7 @@ func _load_banner() -> void:
 	_billboard_banner = AdView.new(_unit("banner"), AdSize.new(320, 50), AdPosition.custom(x, y))
 	_billboard_banner.ad_listener.on_ad_loaded = func():
 		diagnostic_status = "Banner loaded"
+		print("Handball AdMob: banner loaded")
 		_banner_retry_delay = 30.0
 		_billboard_banner.show()
 	_billboard_banner.ad_listener.on_ad_failed_to_load = func(error: LoadAdError):
@@ -141,6 +143,7 @@ func preload_ads() -> void:
 		callback.on_ad_loaded = func(ad: InterstitialAd):
 			_interstitial_loading = false
 			_interstitial = ad
+			print("Handball AdMob: interstitial loaded")
 			ad.full_screen_content_callback.on_ad_dismissed_full_screen_content = _interstitial_finished
 			ad.full_screen_content_callback.on_ad_failed_to_show_full_screen_content = func(error: AdError):
 				_record_error("Interstitial", error)
@@ -158,6 +161,7 @@ func preload_ads() -> void:
 		callback.on_ad_loaded = func(ad: RewardedAd):
 			_rewarded_loading = false
 			_rewarded = ad
+			print("Handball AdMob: rewarded loaded")
 			ad.full_screen_content_callback.on_ad_dismissed_full_screen_content = _rewarded_finished
 			ad.full_screen_content_callback.on_ad_failed_to_show_full_screen_content = func(error: AdError):
 				_record_error("Rewarded", error)

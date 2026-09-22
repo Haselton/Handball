@@ -71,8 +71,11 @@ messages in AdMob and confirm the Handball app is ready to serve ads.
 
 Branch builds and default manual runs are explicitly **diagnostic**: a separate
 `com.haseltonmediagroup.handball.diagnostic` package with Google sample ads and
-no production Play Games IDs. They verify compilation and packaging, not live
-authentication or production ad fill. Main and manual `production` builds require
+no production Play Games IDs. They produce an installable APK alongside the AAB
+and run an Android emulator check requiring native banner, interstitial, and
+rewarded test-ad load callbacks. Logs and a screenshot are saved with the build.
+This does not verify live authentication, production ad fill, or full-screen ad
+completion. Main and manual `production` builds require
 the real configuration. Do not upload diagnostic artifacts to the production app.
 
 After configuring the IDs, test the production-signed app through a Play testing
