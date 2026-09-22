@@ -1,19 +1,30 @@
-[application]
-config/name="Handball"
-config/icon="res://assets/handball_app_icon.png"
-run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.4", "GL Compatibility")
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
 
 [admob]
 
-general/android/enabled=true
 general/android/app_id="ca-app-pub-1051867648799965~7817745375"
 
-[editor_plugins]
+[animation]
 
-enabled=PackedStringArray("res://addons/admob/plugin.cfg")
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
+[application]
+
+config/name="Handball"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/handball_app_icon.png"
 
 [display]
+
 window/size/viewport_width=720
 window/size/viewport_height=1280
 window/size/window_width_override=360
@@ -21,28 +32,41 @@ window/size/window_height_override=640
 window/stretch/mode="canvas_items"
 window/handheld/orientation=1
 
-[rendering]
-textures/vram_compression/import_etc2_astc=true
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
-textures/default_filters/use_nearest_mipmap_filter=false
-anti_aliasing/quality/msaa_3d=2
-environment/defaults/default_clear_color=Color(0.12, 0.17, 0.22, 1)
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/admob/plugin.cfg")
+
+[handball]
+
+play_games/app_id="679580105287"
+play_games/leaderboard_id="CgkIx_SF0eMTEAIQAA"
+ads/banner_id="ca-app-pub-1051867648799965/5000010345"
+ads/interstitial_id="ca-app-pub-1051867648799965/6034947308"
+ads/rewarded_id="ca-app-pub-1051867648799965/4965408217"
+
+[input]
+
+strike={
+"deadzone": 0.5,
+"events": [Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":32,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":1,"canceled":false,"pressed":true,"double_click":false,"script":null)
+]
+}
+pause={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":16,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":32,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+]
+}
 
 [physics]
+
 common/physics_ticks_per_second=120
 common/max_physics_steps_per_frame=16
 3d/physics_engine="Jolt Physics"
 
-[input]
-strike={
-"deadzone": 0.5,
-"events": [Object(InputEventMouseButton,"button_index":1,"pressed":true)]
-}
-pause={
-"deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":32)]
-}
+[rendering]
 
-[audio]
-driver/enable_input=false
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=2
+environment/defaults/default_clear_color=Color(0.12, 0.17, 0.22, 1)

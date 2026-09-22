@@ -50,6 +50,7 @@ var ad_service: AdService
 var play_games_service: PlayGamesService
 var profile_button: Button
 var leaderboard_button: Button
+var privacy_button: Button
 var soundtrack_index := 0
 
 func _ready() -> void:
@@ -62,13 +63,16 @@ func _ready() -> void:
 	_build_ui()
 	_build_audio()
 	play_games_service = PlayGamesService.new()
-	add_child(play_games_service)
 	play_games_service.authentication_changed.connect(_on_play_games_authentication_changed)
 	play_games_service.leaderboard_unavailable.connect(_show_status_message)
+	add_child(play_games_service)
 
 	ad_service = AdService.new()
 	add_child(ad_service)
 	ad_service.interstitial_closed.connect(_restart_round)
+	ad_service.rewarded_continue_earned.connect(_resume_saved_rally)
+	ad_service.status_message.connect(_show_status_message)
+	ad_service.privacy_options_changed.connect(func(required: bool): privacy_button.visible = required)
 	ad_service.initialize()
 	_reset_ball(true)
 
@@ -174,8 +178,8 @@ func _handle_wall_collision() -> void:
 		targets_hit += 1
 		_move_target()
 		if targets_hit >= target_goal:
-			play_games_service.submit_progress(court_level, targets_hit, score + target_points)
 			court_level += 1
+			play_games_service.submit_progress(court_level, targets_hit, score + target_points)
 			targets_hit = 0
 			target_goal = mini(10, 4 + court_level)
 			instruction_label.text = "COURT %d CLEARED" % (court_level - 1)
@@ -220,6 +224,16 @@ func _on_new_rally_pressed() -> void:
 
 func _on_save_rally_pressed() -> void:
 	ad_service.show_rewarded_continue()
+
+func _resume_saved_rally() -> void:
+	if state != GameState.LOST:
+		return
+	game_over_panel.visible = false
+	missed = false
+	_reset_ball(true)
+	state = GameState.READY
+	instruction_label.text = "TAP THE BALL TO SERVE"
+	instruction_label.visible = true
 
 func _restart_round() -> void:
 	score = 0
@@ -563,6 +577,22 @@ func _build_ui() -> void:
 	leaderboard_button.pressed.connect(_on_leaderboard_pressed)
 	root.add_child(leaderboard_button)
 
+	var services_button := Button.new()
+	services_button.text = "SERVICES"
+	services_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	services_button.position = Vector2(-132, -52)
+	services_button.size = Vector2(116, 38)
+	services_button.pressed.connect(_show_services_status)
+	root.add_child(services_button)
+	privacy_button = Button.new()
+	privacy_button.text = "AD PRIVACY"
+	privacy_button.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	privacy_button.position = Vector2(16, -52)
+	privacy_button.size = Vector2(136, 38)
+	privacy_button.visible = false
+	privacy_button.pressed.connect(func(): ad_service.show_privacy_options())
+	root.add_child(privacy_button)
+
 	best_label = Label.new()
 	best_label.text = "BEST %d" % best_score
 	best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -766,3 +796,12 @@ func _show_status_message(message: String) -> void:
 		if state != GameState.READY:
 			instruction_label.visible = false
 	)
+
+func _show_services_status() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "Online services"
+	dialog.dialog_text = "Handball 1.0.1\n\nPlay Games: %s\n\nAdMob: %s" % [play_games_service.diagnostic_status, ad_service.diagnostic_status]
+	add_child(dialog)
+	dialog.popup_centered(Vector2i(600, 280))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)

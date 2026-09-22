@@ -1,0 +1,8 @@
+.godot/
+addons/admob/
+android/build/
+android/.build_version
+build/
+__pycache__/
+*.pyc
+*.import

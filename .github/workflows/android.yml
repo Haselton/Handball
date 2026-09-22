@@ -1,13 +1,24 @@
-name: Build Android Production AAB
+name: Build Android Services
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Production requires all real service IDs
+        type: choice
+        options: [diagnostic, production]
+        default: diagnostic
   push:
-    branches: [main]
+    branches: [main, codex/fix-production-services]
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SERVICE_MODE: ${{ github.event.inputs.mode || (github.ref == 'refs/heads/main' && 'production' || 'diagnostic') }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v4
@@ -15,6 +26,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Install Android API 36 platform
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
       - name: Restore persistent Handball upload key
@@ -61,6 +74,15 @@ jobs:
           template_root="$(dirname "$settings_gradle")"
           cp -R "$template_root"/. android/build/
           printf '%s\n' '4.7.2.stable' > android/.build_version
+      - name: Test service configuration and release gate
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Install and configure native Play Games
+        env:
+          PLAY_GAMES_APP_ID: ${{ vars.PLAY_GAMES_APP_ID }}
+          PLAY_GAMES_LEADERBOARD_ID: ${{ vars.PLAY_GAMES_LEADERBOARD_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+          ADMOB_REWARDED_ID: ${{ vars.ADMOB_REWARDED_ID }}
+        run: python ci/configure_services.py --mode "$SERVICE_MODE"
       - name: Export Handball release AAB
         id: export
         env:
@@ -77,15 +99,62 @@ jobs:
           verbose: true
           cache: true
           presets_to_export: Android Release
-      - name: Collect production AAB
+      - name: Verify game scripts and service behavior
+        run: python ci/check_godot.py "$HOME/.local/share/godot/godot_executable/Godot_v4.7.2-stable_linux.x86_64"
+      - name: Verify packaged native services
         run: |
           aab_path="$(find "$HOME/.local/share/godot/builds" build/android -type f -name '*.aab' -print -quit)"
           test -n "$aab_path"
           cp "$aab_path" build/android/Handball-release.aab
           test -s build/android/Handball-release.aab
           unzip -p build/android/Handball-release.aab base/manifest/AndroidManifest.xml > /dev/null
+          python ci/verify_services_bundle.py build/android/Handball-release.aab
+          if [ "$SERVICE_MODE" = diagnostic ]; then
+            mv build/android/Handball-release.aab build/android/Handball-diagnostic.aab
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: Handball-production-aab
-          path: build/android/Handball-release.aab
+          name: Handball-${{ env.SERVICE_MODE }}-aab
+          path: build/android/*.aab
           if-no-files-found: error
+      - name: Export installable diagnostic APK
+        if: env.SERVICE_MODE == 'diagnostic'
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: /home/runner/.android/handball-upload.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: handballdebug
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: android
+        run: |
+          sed -i 's|gradle_build/export_format=1|gradle_build/export_format=0|' export_presets.cfg
+          "$HOME/.local/share/godot/godot_executable/Godot_v4.7.2-stable_linux.x86_64" \
+            --headless --path "$GITHUB_WORKSPACE" --export-release "Android Release" \
+            "$GITHUB_WORKSPACE/build/android/Handball-diagnostic.apk"
+          test -s build/android/Handball-diagnostic.apk
+      - uses: actions/upload-artifact@v4
+        if: env.SERVICE_MODE == 'diagnostic'
+        with:
+          name: Handball-diagnostic-apk
+          path: build/android/Handball-diagnostic.apk
+          if-no-files-found: error
+      - name: Enable emulator acceleration
+        if: env.SERVICE_MODE == 'diagnostic'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify native ad loading on Android
+        if: env.SERVICE_MODE == 'diagnostic'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7_pro
+          emulator-options: -no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: python ci/smoke_android.py build/android/Handball-diagnostic.apk
+      - uses: actions/upload-artifact@v4
+        if: always() && env.SERVICE_MODE == 'diagnostic'
+        with:
+          name: Handball-android-runtime-evidence
+          path: build/android/runtime/
+          if-no-files-found: warn
