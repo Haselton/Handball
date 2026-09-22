@@ -58,8 +58,13 @@ settings in `project.godot`):
 The Handball production AdMob application and all three ad unit IDs are configured
 in `project.godot`. Interstitial uses `Between Rounds Interstitial`; rewarded uses
 `Save Rally Rewarded` with a reward of one `Rally Continue`. Actions variables can
-override these values when needed. The Play Games project and leaderboard IDs
-remain blank until obtained from the owner's console.
+override these values when needed. The linked Google Cloud project is
+`handball-da025`; Play Games project `679580105287` and its **Courts Passed**
+leaderboard `CgkIx_SF0eMTEAIQAA` are configured in `project.godot`.
+The leaderboard is still a draft. OAuth consent, signing-certificate credentials,
+and Play Games publication must be completed before testing sign-in.
+Firebase Console was used only to create the underlying Cloud project; the app
+continues to use Play Games v2 and does not add Firebase authentication or a database.
 Production export fails before building when required values are missing,
 malformed, or contain Google's sample ad publisher ID.
 
