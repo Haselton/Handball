@@ -1,6 +1,7 @@
 import importlib.util
 import os
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -31,6 +32,11 @@ class ServicesBuildTests(unittest.TestCase):
         }
 
     def test_missing_configuration_blocks_production_without_mutation(self):
+        project = self.root / 'project.godot'
+        # Explicitly remove the ID from the fixture; the app now has real IDs.
+        text, count = re.subn(r'^play_games/app_id=.*$', 'play_games/app_id=""', project.read_text(), flags=re.M)
+        self.assertEqual(count, 1)
+        project.write_text(text)
         original = (self.root / 'project.godot').read_bytes()
         with self.assertRaisesRegex(ValueError, 'play_games/app_id'):
             services.configure(self.root, 'production', {})
