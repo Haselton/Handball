@@ -40,6 +40,10 @@ public final class HandballPlayGames extends GodotPlugin {
         return !resource(activity, "game_services_project_id").isEmpty();
     }
 
+    private boolean usable(Activity activity) {
+        return getActivity() == activity && !activity.isFinishing() && !activity.isDestroyed();
+    }
+
     private void failure(String operation, Exception error) {
         Log.e(TAG, operation, error);
         String code = error instanceof ApiException
@@ -51,6 +55,7 @@ public final class HandballPlayGames extends GodotPlugin {
         Activity activity = getActivity();
         if (activity == null) return;
         activity.runOnUiThread(() -> {
+            if (!usable(activity)) return;
             if (!configured(activity)) {
                 emitSignal("service_error", "PLAY GAMES IS NOT CONFIGURED FOR THIS BUILD");
                 return;
@@ -59,8 +64,12 @@ public final class HandballPlayGames extends GodotPlugin {
             signingIn = true;
             var client = PlayGames.getGamesSignInClient(activity);
             var task = interactive ? client.signIn() : client.isAuthenticated();
-            task.addOnCompleteListener(activity, result -> {
+            // Activity-scoped listeners are removed at onStop, which can happen
+            // during the sign-in UI. Always settle the pending attempt so retry
+            // remains possible; discard results only when this Activity is gone.
+            task.addOnCompleteListener(result -> {
                 signingIn = false;
+                if (!usable(activity)) return;
                 authenticated = result.isSuccessful() && result.getResult().isAuthenticated();
                 if (!authenticated) {
                     emitSignal("authentication_changed", false);
@@ -69,11 +78,13 @@ public final class HandballPlayGames extends GodotPlugin {
                     return;
                 }
                 PlayGames.getPlayersClient(activity).getCurrentPlayer()
-                    .addOnSuccessListener(activity, player -> {
+                    .addOnSuccessListener(player -> {
+                        if (!usable(activity)) return;
                         emitSignal("player_changed", player.getDisplayName());
                         emitSignal("authentication_changed", true);
                     })
-                    .addOnFailureListener(activity, error -> {
+                    .addOnFailureListener(error -> {
+                        if (!usable(activity)) return;
                         emitSignal("player_changed", "PLAYER");
                         emitSignal("authentication_changed", true);
                         failure("COULD NOT LOAD PLAY GAMES PROFILE", error);
