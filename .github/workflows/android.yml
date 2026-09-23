@@ -9,7 +9,7 @@ on:
         options: [diagnostic, production]
         default: diagnostic
   push:
-    branches: [main, codex/fix-production-services]
+    branches: [main, codex/fix-production-services, codex/handball-production-candidate]
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      SERVICE_MODE: ${{ github.event.inputs.mode || (github.ref == 'refs/heads/main' && 'production' || 'diagnostic') }}
+      SERVICE_MODE: ${{ github.event.inputs.mode || ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/handball-production-candidate') && 'production' || 'diagnostic') }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v4
