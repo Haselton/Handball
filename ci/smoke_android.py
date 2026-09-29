@@ -34,7 +34,9 @@ def main():
     if not activity.startswith(PACKAGE + '/'):
         raise RuntimeError('Diagnostic launcher activity was not found: ' + activity)
     print(adb('shell', 'am', 'start', '-W', '-n', activity).stdout, flush=True)
-    deadline = time.monotonic() + 150
+    # A native load can take over a minute before reporting no fill. Allow the
+    # app's 30-second backoff and a second full request to finish as well.
+    deadline = time.monotonic() + 270
     app_log = ''
     pid = ''
     try:
