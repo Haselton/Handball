@@ -9,7 +9,7 @@ on:
         options: [diagnostic, production]
         default: diagnostic
   push:
-    branches: [main, codex/fix-production-services, codex/handball-production-candidate]
+    branches: [main, codex/fix-production-services, codex/handball-production-candidate, codex/handball-ad-status-retries]
 
 permissions:
   contents: read
