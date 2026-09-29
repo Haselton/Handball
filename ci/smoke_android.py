@@ -21,6 +21,9 @@ def adb(*args, check=True, binary=False):
 
 
 def main():
+    # Keep software rendering responsive on the hosted emulator.
+    adb('shell', 'wm', 'size', '720x1560')
+    adb('shell', 'wm', 'density', '320')
     adb('install', '-r', sys.argv[1])
     # On a fresh emulator, Pixel resource overlays and package configuration
     # updates continue after sys.boot_completed. They can recreate an activity
@@ -34,7 +37,9 @@ def main():
     if not activity.startswith(PACKAGE + '/'):
         raise RuntimeError('Diagnostic launcher activity was not found: ' + activity)
     print(adb('shell', 'am', 'start', '-W', '-n', activity).stdout, flush=True)
-    deadline = time.monotonic() + 150
+    # A native load can take over a minute before reporting no fill. Allow the
+    # app's 30-second backoff and a second full request to finish as well.
+    deadline = time.monotonic() + 270
     app_log = ''
     pid = ''
     try:

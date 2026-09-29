@@ -7,6 +7,9 @@ signal status_message(message: String)
 signal privacy_options_changed(required: bool)
 
 var diagnostic_status := "Ads have not initialized"
+var _ad_status := {"Banner": "Not requested", "Interstitial": "Not requested", "Rewarded": "Not requested"}
+var _fullscreen_retries: Dictionary = {}
+var _fullscreen_retry_delays := {"Interstitial": 30.0, "Rewarded": 30.0}
 var _billboard_banner
 var _interstitial
 var _rewarded
@@ -34,10 +37,12 @@ func initialize() -> void:
 			return
 	_banner_retry = Timer.new()
 	_banner_retry.one_shot = true
+	_banner_retry.ignore_time_scale = true
 	_banner_retry.timeout.connect(_load_banner)
 	add_child(_banner_retry)
 	_consent_retry = Timer.new()
 	_consent_retry.one_shot = true
+	_consent_retry.ignore_time_scale = true
 	_consent_retry.wait_time = 60.0
 	_consent_retry.timeout.connect(_update_consent)
 	add_child(_consent_retry)
@@ -117,58 +122,106 @@ func _load_banner() -> void:
 	var y := maxi(0, int(float(screen_size.y) / density * 0.223))
 	_billboard_banner = AdView.new(_unit("banner"), AdSize.new(320, 50), AdPosition.custom(x, y))
 	_billboard_banner.ad_listener.on_ad_loaded = func():
-		diagnostic_status = "Banner loaded"
+		_set_ad_status("Banner", "Loaded")
 		print("Handball AdMob: banner loaded")
 		_banner_retry_delay = 30.0
+		_banner_retry.stop()
 		_billboard_banner.show()
 	_billboard_banner.ad_listener.on_ad_failed_to_load = func(error: LoadAdError):
 		_record_error("Banner", error)
 		_banner_retry.start(_banner_retry_delay)
 		_banner_retry_delay = minf(_banner_retry_delay * 2.0, 300.0)
-	diagnostic_status = "Requesting banner"
+	_set_ad_status("Banner", "Loading")
 	_billboard_banner.load_ad(AdRequest.new())
 
+func _set_ad_status(kind: String, message: String) -> void:
+	_ad_status[kind] = message
+	var lines := PackedStringArray()
+	for format in ["Banner", "Interstitial", "Rewarded"]:
+		lines.append("%s: %s" % [format, _ad_status[format]])
+	diagnostic_status = "\n".join(lines)
+
 func _record_error(kind: String, error: AdError) -> void:
-	diagnostic_status = "%s: %s (%s, code %d)" % [kind, error.message, error.domain, error.code]
-	push_warning(diagnostic_status)
+	var detail := "%s (code %d)" % [error.message, error.code]
+	if not error.domain.is_empty():
+		detail += " — " + error.domain
+	_set_ad_status(kind, detail)
+	push_warning("%s: %s" % [kind, detail])
 	if error is LoadAdError and error.response_info != null:
 		print("AdMob response ID: ", error.response_info.response_id)
 
+func _fullscreen_retry_pending(kind: String) -> bool:
+	return _fullscreen_retries.has(kind) and not _fullscreen_retries[kind].is_stopped()
+
+func _schedule_fullscreen_retry(kind: String) -> void:
+	if not _fullscreen_retries.has(kind):
+		var timer := Timer.new()
+		timer.one_shot = true
+		# Network backoff follows elapsed time, independent of game frame timing.
+		timer.ignore_time_scale = true
+		timer.timeout.connect(_retry_fullscreen.bind(kind))
+		add_child(timer)
+		_fullscreen_retries[kind] = timer
+	var delay: float = _fullscreen_retry_delays[kind]
+	_fullscreen_retries[kind].start(delay)
+	_fullscreen_retry_delays[kind] = minf(delay * 2.0, 300.0)
+	_set_ad_status(kind, "%s; retry in %ds" % [_ad_status[kind], int(delay)])
+
+func _retry_fullscreen(kind: String) -> void:
+	print("Handball AdMob: retrying ", kind.to_lower())
+	preload_ads()
+
+func _reset_fullscreen_retry(kind: String) -> void:
+	if _fullscreen_retries.has(kind):
+		_fullscreen_retries[kind].stop()
+	_fullscreen_retry_delays[kind] = 30.0
+
 func preload_ads() -> void:
-	if not _initialized:
+	if not _initialized or _showing:
 		return
-	if _interstitial == null and not _interstitial_loading and not _unit("interstitial").is_empty():
+	if _interstitial == null and not _interstitial_loading and not _fullscreen_retry_pending("Interstitial") and not _unit("interstitial").is_empty():
 		_interstitial_loading = true
+		_set_ad_status("Interstitial", "Loading")
 		var callback := InterstitialAdLoadCallback.new()
 		callback.on_ad_loaded = func(ad: InterstitialAd):
 			_interstitial_loading = false
 			_interstitial = ad
+			_reset_fullscreen_retry("Interstitial")
+			_set_ad_status("Interstitial", "Ready")
 			print("Handball AdMob: interstitial loaded")
 			ad.full_screen_content_callback.on_ad_dismissed_full_screen_content = _interstitial_finished
 			ad.full_screen_content_callback.on_ad_failed_to_show_full_screen_content = func(error: AdError):
 				_record_error("Interstitial", error)
 				_interstitial_finished()
 			ad.full_screen_content_callback.on_ad_showed_full_screen_content = func():
+				_set_ad_status("Interstitial", "Showing")
 				_rounds_since_ad = 0
 				_last_ad_time_ms = Time.get_ticks_msec()
 		callback.on_ad_failed_to_load = func(error: LoadAdError):
 			_interstitial_loading = false
 			_record_error("Interstitial", error)
+			_schedule_fullscreen_retry("Interstitial")
 		InterstitialAdLoader.new().load(_unit("interstitial"), AdRequest.new(), callback)
-	if _rewarded == null and not _rewarded_loading and not _unit("rewarded").is_empty():
+	if _rewarded == null and not _rewarded_loading and not _fullscreen_retry_pending("Rewarded") and not _unit("rewarded").is_empty():
 		_rewarded_loading = true
+		_set_ad_status("Rewarded", "Loading")
 		var callback := RewardedAdLoadCallback.new()
 		callback.on_ad_loaded = func(ad: RewardedAd):
 			_rewarded_loading = false
 			_rewarded = ad
+			_reset_fullscreen_retry("Rewarded")
+			_set_ad_status("Rewarded", "Ready")
 			print("Handball AdMob: rewarded loaded")
 			ad.full_screen_content_callback.on_ad_dismissed_full_screen_content = _rewarded_finished
+			ad.full_screen_content_callback.on_ad_showed_full_screen_content = func():
+				_set_ad_status("Rewarded", "Showing")
 			ad.full_screen_content_callback.on_ad_failed_to_show_full_screen_content = func(error: AdError):
 				_record_error("Rewarded", error)
 				_rewarded_finished()
 		callback.on_ad_failed_to_load = func(error: LoadAdError):
 			_rewarded_loading = false
 			_record_error("Rewarded", error)
+			_schedule_fullscreen_retry("Rewarded")
 		RewardedAdLoader.new().load(_unit("rewarded"), AdRequest.new(), callback)
 
 func note_round_finished() -> void:
@@ -198,8 +251,13 @@ func show_rewarded_continue() -> void:
 	if _showing:
 		return
 	if _rewarded == null:
-		status_message.emit("NO REWARD VIDEO AVAILABLE. TRY AGAIN LATER.")
 		preload_ads()
+		if not _initialized:
+			status_message.emit("ADS ARE STILL STARTING. TRY AGAIN SHORTLY.")
+		elif _rewarded_loading:
+			status_message.emit("REWARD AD IS LOADING. TAP SAVE RALLY AGAIN SHORTLY.")
+		else:
+			status_message.emit("NO REWARD AD READY. TRY AGAIN SHORTLY.")
 		return
 	_showing = true
 	_reward_earned = false
@@ -226,6 +284,8 @@ func _destroy_ads() -> void:
 	_rewarded = null
 	if _banner_retry != null:
 		_banner_retry.stop()
+	for kind in _fullscreen_retries:
+		_reset_fullscreen_retry(kind)
 
 func _exit_tree() -> void:
 	_destroy_ads()
