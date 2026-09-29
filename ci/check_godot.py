@@ -4,6 +4,7 @@ import sys
 
 commands = [
     ['--headless', '--editor', '--import', '--path', '.', '--quit'],
+    ['--headless', '--path', '.', '--script', 'tests/test_ad_service.gd'],
     ['--headless', '--path', '.', '--script', 'tests/test_game_services.gd'],
 ]
 for args in commands:
