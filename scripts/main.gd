@@ -800,7 +800,7 @@ func _show_status_message(message: String) -> void:
 func _show_services_status() -> void:
 	var dialog := AcceptDialog.new()
 	dialog.title = "Online services"
-	dialog.dialog_text = "Handball 1.0.2\n\nPlay Games: %s\n\nAdMob: %s" % [play_games_service.diagnostic_status, ad_service.diagnostic_status]
+	dialog.dialog_text = "Handball %s\n\nPlay Games: %s\n\nAdMob: %s" % [ProjectSettings.get_setting("application/config/version", ""), play_games_service.diagnostic_status, ad_service.diagnostic_status]
 	add_child(dialog)
 	dialog.popup_centered(Vector2i(600, 280))
 	dialog.confirmed.connect(dialog.queue_free)

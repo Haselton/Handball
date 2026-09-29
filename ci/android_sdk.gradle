@@ -1,0 +1,30 @@
+// The plugin's prebuilt bridge is retained; Gradle selects these current SDKs.
+dependencies {
+    implementation "com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.5.0"
+    implementation "androidx.activity:activity:1.13.0"
+}
+
+// Fail the export if its actual resolved runtime dependencies differ.
+configurations.configureEach { configuration ->
+    if (configuration.name.endsWith("ReleaseRuntimeClasspath")) {
+        configuration.incoming.afterResolve { resolved ->
+            def expected = [
+                "com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk": "1.5.0",
+                "androidx.activity:activity": "1.13.0"
+            ]
+            def actual = [:]
+            resolved.resolutionResult.allComponents.each { component ->
+                def version = component.moduleVersion
+                if (version != null) {
+                    def coordinate = "${version.group}:${version.name}".toString()
+                    if (expected.containsKey(coordinate)) actual[coordinate] = version.version
+                }
+            }
+            if (actual != expected) throw new GradleException("Unexpected Handball SDK versions: ${actual}")
+            def report = new File(rootDir, "../../build/android/sdk-versions.json")
+            report.parentFile.mkdirs()
+            report.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(actual))
+            println "Handball resolved SDKs: ${actual}"
+        }
+    }
+}
