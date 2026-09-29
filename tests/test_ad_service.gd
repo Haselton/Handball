@@ -38,8 +38,10 @@ func _run() -> void:
 	root.add_child(probe)
 	probe._schedule_fullscreen_retry("Rewarded")
 	probe._fullscreen_retries["Rewarded"].start(0.01)
-	await create_timer(0.05).timeout
-	assert(probe.retry_calls == 1, "A failed load must retry without another gameplay action")
+	Engine.time_scale = 0.001
+	await create_timer(0.05, true, false, true).timeout
+	Engine.time_scale = 1.0
+	assert(probe.retry_calls == 1, "A failed load must retry on elapsed time without another gameplay action")
 	for attempt in range(8):
 		probe._set_ad_status("Rewarded", "No fill")
 		probe._schedule_fullscreen_retry("Rewarded")

@@ -21,6 +21,9 @@ def adb(*args, check=True, binary=False):
 
 
 def main():
+    # Keep software rendering responsive on the hosted emulator.
+    adb('shell', 'wm', 'size', '720x1560')
+    adb('shell', 'wm', 'density', '320')
     adb('install', '-r', sys.argv[1])
     # On a fresh emulator, Pixel resource overlays and package configuration
     # updates continue after sys.boot_completed. They can recreate an activity

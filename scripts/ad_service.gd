@@ -37,10 +37,12 @@ func initialize() -> void:
 			return
 	_banner_retry = Timer.new()
 	_banner_retry.one_shot = true
+	_banner_retry.ignore_time_scale = true
 	_banner_retry.timeout.connect(_load_banner)
 	add_child(_banner_retry)
 	_consent_retry = Timer.new()
 	_consent_retry.one_shot = true
+	_consent_retry.ignore_time_scale = true
 	_consent_retry.wait_time = 60.0
 	_consent_retry.timeout.connect(_update_consent)
 	add_child(_consent_retry)
@@ -155,13 +157,19 @@ func _schedule_fullscreen_retry(kind: String) -> void:
 	if not _fullscreen_retries.has(kind):
 		var timer := Timer.new()
 		timer.one_shot = true
-		timer.timeout.connect(preload_ads)
+		# Network backoff follows elapsed time, independent of game frame timing.
+		timer.ignore_time_scale = true
+		timer.timeout.connect(_retry_fullscreen.bind(kind))
 		add_child(timer)
 		_fullscreen_retries[kind] = timer
 	var delay: float = _fullscreen_retry_delays[kind]
 	_fullscreen_retries[kind].start(delay)
 	_fullscreen_retry_delays[kind] = minf(delay * 2.0, 300.0)
 	_set_ad_status(kind, "%s; retry in %ds" % [_ad_status[kind], int(delay)])
+
+func _retry_fullscreen(kind: String) -> void:
+	print("Handball AdMob: retrying ", kind.to_lower())
+	preload_ads()
 
 func _reset_fullscreen_retry(kind: String) -> void:
 	if _fullscreen_retries.has(kind):
